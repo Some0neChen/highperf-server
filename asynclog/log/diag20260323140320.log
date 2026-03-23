@@ -1,0 +1,515 @@
+[2026-03-23 14:03:20][INFO ][main.cpp:9]server started, port=8080
+[2026-03-23 14:03:20][INFO ][main.cpp:10]hello world
+[2026-03-23 14:03:20][ERROR][main.cpp:11]something went wrong, errno=42
+[2026-03-23 14:03:20][ERROR][main.cpp:13]Logging... 0
+[2026-03-23 14:03:20][INFO ][main.cpp:14]Logging... 0
+[2026-03-23 14:03:20][ERROR][main.cpp:13]Logging... 1
+[2026-03-23 14:03:20][INFO ][main.cpp:14]Logging... 1
+[2026-03-23 14:03:20][ERROR][main.cpp:13]Logging... 2
+[2026-03-23 14:03:20][INFO ][main.cpp:14]Logging... 2
+[2026-03-23 14:03:21][ERROR][main.cpp:13]Logging... 3
+[2026-03-23 14:03:21][INFO ][main.cpp:14]Logging... 3
+[2026-03-23 14:03:21][ERROR][main.cpp:13]Logging... 4
+[2026-03-23 14:03:21][INFO ][main.cpp:14]Logging... 4
+[2026-03-23 14:03:21][ERROR][main.cpp:13]Logging... 5
+[2026-03-23 14:03:21][INFO ][main.cpp:14]Logging... 5
+[2026-03-23 14:03:21][ERROR][main.cpp:13]Logging... 6
+[2026-03-23 14:03:21][INFO ][main.cpp:14]Logging... 6
+[2026-03-23 14:03:21][ERROR][main.cpp:13]Logging... 7
+[2026-03-23 14:03:21][INFO ][main.cpp:14]Logging... 7
+[2026-03-23 14:03:22][ERROR][main.cpp:13]Logging... 8
+[2026-03-23 14:03:22][INFO ][main.cpp:14]Logging... 8
+[2026-03-23 14:03:22][ERROR][main.cpp:13]Logging... 9
+[2026-03-23 14:03:22][INFO ][main.cpp:14]Logging... 9
+[2026-03-23 14:03:22][ERROR][main.cpp:13]Logging... 10
+[2026-03-23 14:03:22][INFO ][main.cpp:14]Logging... 10
+[2026-03-23 14:03:22][ERROR][main.cpp:13]Logging... 11
+[2026-03-23 14:03:22][INFO ][main.cpp:14]Logging... 11
+[2026-03-23 14:03:22][ERROR][main.cpp:13]Logging... 12
+[2026-03-23 14:03:22][INFO ][main.cpp:14]Logging... 12
+[2026-03-23 14:03:23][ERROR][main.cpp:13]Logging... 13
+[2026-03-23 14:03:23][INFO ][main.cpp:14]Logging... 13
+[2026-03-23 14:03:23][ERROR][main.cpp:13]Logging... 14
+[2026-03-23 14:03:23][INFO ][main.cpp:14]Logging... 14
+[2026-03-23 14:03:23][ERROR][main.cpp:13]Logging... 15
+[2026-03-23 14:03:23][INFO ][main.cpp:14]Logging... 15
+[2026-03-23 14:03:23][ERROR][main.cpp:13]Logging... 16
+[2026-03-23 14:03:23][INFO ][main.cpp:14]Logging... 16
+[2026-03-23 14:03:23][ERROR][main.cpp:13]Logging... 17
+[2026-03-23 14:03:23][INFO ][main.cpp:14]Logging... 17
+[2026-03-23 14:03:24][ERROR][main.cpp:13]Logging... 18
+[2026-03-23 14:03:24][INFO ][main.cpp:14]Logging... 18
+[2026-03-23 14:03:24][ERROR][main.cpp:13]Logging... 19
+[2026-03-23 14:03:24][INFO ][main.cpp:14]Logging... 19
+[2026-03-23 14:03:24][ERROR][main.cpp:13]Logging... 20
+[2026-03-23 14:03:24][INFO ][main.cpp:14]Logging... 20
+[2026-03-23 14:03:24][ERROR][main.cpp:13]Logging... 21
+[2026-03-23 14:03:24][INFO ][main.cpp:14]Logging... 21
+[2026-03-23 14:03:24][ERROR][main.cpp:13]Logging... 22
+[2026-03-23 14:03:24][INFO ][main.cpp:14]Logging... 22
+[2026-03-23 14:03:25][ERROR][main.cpp:13]Logging... 23
+[2026-03-23 14:03:25][INFO ][main.cpp:14]Logging... 23
+[2026-03-23 14:03:25][ERROR][main.cpp:13]Logging... 24
+[2026-03-23 14:03:25][INFO ][main.cpp:14]Logging... 24
+[2026-03-23 14:03:25][ERROR][main.cpp:13]Logging... 25
+[2026-03-23 14:03:25][INFO ][main.cpp:14]Logging... 25
+[2026-03-23 14:03:25][ERROR][main.cpp:13]Logging... 26
+[2026-03-23 14:03:25][INFO ][main.cpp:14]Logging... 26
+[2026-03-23 14:03:25][ERROR][main.cpp:13]Logging... 27
+[2026-03-23 14:03:25][INFO ][main.cpp:14]Logging... 27
+[2026-03-23 14:03:26][ERROR][main.cpp:13]Logging... 28
+[2026-03-23 14:03:26][INFO ][main.cpp:14]Logging... 28
+[2026-03-23 14:03:26][ERROR][main.cpp:13]Logging... 29
+[2026-03-23 14:03:26][INFO ][main.cpp:14]Logging... 29
+[2026-03-23 14:03:26][ERROR][main.cpp:13]Logging... 30
+[2026-03-23 14:03:26][INFO ][main.cpp:14]Logging... 30
+[2026-03-23 14:03:26][ERROR][main.cpp:13]Logging... 31
+[2026-03-23 14:03:26][INFO ][main.cpp:14]Logging... 31
+[2026-03-23 14:03:26][ERROR][main.cpp:13]Logging... 32
+[2026-03-23 14:03:26][INFO ][main.cpp:14]Logging... 32
+[2026-03-23 14:03:27][ERROR][main.cpp:13]Logging... 33
+[2026-03-23 14:03:27][INFO ][main.cpp:14]Logging... 33
+[2026-03-23 14:03:27][ERROR][main.cpp:13]Logging... 34
+[2026-03-23 14:03:27][INFO ][main.cpp:14]Logging... 34
+[2026-03-23 14:03:27][ERROR][main.cpp:13]Logging... 35
+[2026-03-23 14:03:27][INFO ][main.cpp:14]Logging... 35
+[2026-03-23 14:03:27][ERROR][main.cpp:13]Logging... 36
+[2026-03-23 14:03:27][INFO ][main.cpp:14]Logging... 36
+[2026-03-23 14:03:27][ERROR][main.cpp:13]Logging... 37
+[2026-03-23 14:03:27][INFO ][main.cpp:14]Logging... 37
+[2026-03-23 14:03:28][ERROR][main.cpp:13]Logging... 38
+[2026-03-23 14:03:28][INFO ][main.cpp:14]Logging... 38
+[2026-03-23 14:03:28][ERROR][main.cpp:13]Logging... 39
+[2026-03-23 14:03:28][INFO ][main.cpp:14]Logging... 39
+[2026-03-23 14:03:28][ERROR][main.cpp:13]Logging... 40
+[2026-03-23 14:03:28][INFO ][main.cpp:14]Logging... 40
+[2026-03-23 14:03:28][ERROR][main.cpp:13]Logging... 41
+[2026-03-23 14:03:28][INFO ][main.cpp:14]Logging... 41
+[2026-03-23 14:03:28][ERROR][main.cpp:13]Logging... 42
+[2026-03-23 14:03:28][INFO ][main.cpp:14]Logging... 42
+[2026-03-23 14:03:29][ERROR][main.cpp:13]Logging... 43
+[2026-03-23 14:03:29][INFO ][main.cpp:14]Logging... 43
+[2026-03-23 14:03:29][ERROR][main.cpp:13]Logging... 44
+[2026-03-23 14:03:29][INFO ][main.cpp:14]Logging... 44
+[2026-03-23 14:03:29][ERROR][main.cpp:13]Logging... 45
+[2026-03-23 14:03:29][INFO ][main.cpp:14]Logging... 45
+[2026-03-23 14:03:29][ERROR][main.cpp:13]Logging... 46
+[2026-03-23 14:03:29][INFO ][main.cpp:14]Logging... 46
+[2026-03-23 14:03:29][ERROR][main.cpp:13]Logging... 47
+[2026-03-23 14:03:29][INFO ][main.cpp:14]Logging... 47
+[2026-03-23 14:03:30][ERROR][main.cpp:13]Logging... 48
+[2026-03-23 14:03:30][INFO ][main.cpp:14]Logging... 48
+[2026-03-23 14:03:30][ERROR][main.cpp:13]Logging... 49
+[2026-03-23 14:03:30][INFO ][main.cpp:14]Logging... 49
+[2026-03-23 14:03:30][ERROR][main.cpp:13]Logging... 50
+[2026-03-23 14:03:30][INFO ][main.cpp:14]Logging... 50
+[2026-03-23 14:03:30][ERROR][main.cpp:13]Logging... 51
+[2026-03-23 14:03:30][INFO ][main.cpp:14]Logging... 51
+[2026-03-23 14:03:30][ERROR][main.cpp:13]Logging... 52
+[2026-03-23 14:03:30][INFO ][main.cpp:14]Logging... 52
+[2026-03-23 14:03:31][ERROR][main.cpp:13]Logging... 53
+[2026-03-23 14:03:31][INFO ][main.cpp:14]Logging... 53
+[2026-03-23 14:03:31][ERROR][main.cpp:13]Logging... 54
+[2026-03-23 14:03:31][INFO ][main.cpp:14]Logging... 54
+[2026-03-23 14:03:31][ERROR][main.cpp:13]Logging... 55
+[2026-03-23 14:03:31][INFO ][main.cpp:14]Logging... 55
+[2026-03-23 14:03:31][ERROR][main.cpp:13]Logging... 56
+[2026-03-23 14:03:31][INFO ][main.cpp:14]Logging... 56
+[2026-03-23 14:03:31][ERROR][main.cpp:13]Logging... 57
+[2026-03-23 14:03:31][INFO ][main.cpp:14]Logging... 57
+[2026-03-23 14:03:32][ERROR][main.cpp:13]Logging... 58
+[2026-03-23 14:03:32][INFO ][main.cpp:14]Logging... 58
+[2026-03-23 14:03:32][ERROR][main.cpp:13]Logging... 59
+[2026-03-23 14:03:32][INFO ][main.cpp:14]Logging... 59
+[2026-03-23 14:03:32][ERROR][main.cpp:13]Logging... 60
+[2026-03-23 14:03:32][INFO ][main.cpp:14]Logging... 60
+[2026-03-23 14:03:32][ERROR][main.cpp:13]Logging... 61
+[2026-03-23 14:03:32][INFO ][main.cpp:14]Logging... 61
+[2026-03-23 14:03:32][ERROR][main.cpp:13]Logging... 62
+[2026-03-23 14:03:32][INFO ][main.cpp:14]Logging... 62
+[2026-03-23 14:03:33][ERROR][main.cpp:13]Logging... 63
+[2026-03-23 14:03:33][INFO ][main.cpp:14]Logging... 63
+[2026-03-23 14:03:33][ERROR][main.cpp:13]Logging... 64
+[2026-03-23 14:03:33][INFO ][main.cpp:14]Logging... 64
+[2026-03-23 14:03:33][ERROR][main.cpp:13]Logging... 65
+[2026-03-23 14:03:33][INFO ][main.cpp:14]Logging... 65
+[2026-03-23 14:03:33][ERROR][main.cpp:13]Logging... 66
+[2026-03-23 14:03:33][INFO ][main.cpp:14]Logging... 66
+[2026-03-23 14:03:33][ERROR][main.cpp:13]Logging... 67
+[2026-03-23 14:03:33][INFO ][main.cpp:14]Logging... 67
+[2026-03-23 14:03:34][ERROR][main.cpp:13]Logging... 68
+[2026-03-23 14:03:34][INFO ][main.cpp:14]Logging... 68
+[2026-03-23 14:03:34][ERROR][main.cpp:13]Logging... 69
+[2026-03-23 14:03:34][INFO ][main.cpp:14]Logging... 69
+[2026-03-23 14:03:34][ERROR][main.cpp:13]Logging... 70
+[2026-03-23 14:03:34][INFO ][main.cpp:14]Logging... 70
+[2026-03-23 14:03:34][ERROR][main.cpp:13]Logging... 71
+[2026-03-23 14:03:34][INFO ][main.cpp:14]Logging... 71
+[2026-03-23 14:03:34][ERROR][main.cpp:13]Logging... 72
+[2026-03-23 14:03:34][INFO ][main.cpp:14]Logging... 72
+[2026-03-23 14:03:35][ERROR][main.cpp:13]Logging... 73
+[2026-03-23 14:03:35][INFO ][main.cpp:14]Logging... 73
+[2026-03-23 14:03:35][ERROR][main.cpp:13]Logging... 74
+[2026-03-23 14:03:35][INFO ][main.cpp:14]Logging... 74
+[2026-03-23 14:03:35][ERROR][main.cpp:13]Logging... 75
+[2026-03-23 14:03:35][INFO ][main.cpp:14]Logging... 75
+[2026-03-23 14:03:35][ERROR][main.cpp:13]Logging... 76
+[2026-03-23 14:03:35][INFO ][main.cpp:14]Logging... 76
+[2026-03-23 14:03:35][ERROR][main.cpp:13]Logging... 77
+[2026-03-23 14:03:35][INFO ][main.cpp:14]Logging... 77
+[2026-03-23 14:03:36][ERROR][main.cpp:13]Logging... 78
+[2026-03-23 14:03:36][INFO ][main.cpp:14]Logging... 78
+[2026-03-23 14:03:36][ERROR][main.cpp:13]Logging... 79
+[2026-03-23 14:03:36][INFO ][main.cpp:14]Logging... 79
+[2026-03-23 14:03:36][ERROR][main.cpp:13]Logging... 80
+[2026-03-23 14:03:36][INFO ][main.cpp:14]Logging... 80
+[2026-03-23 14:03:36][ERROR][main.cpp:13]Logging... 81
+[2026-03-23 14:03:36][INFO ][main.cpp:14]Logging... 81
+[2026-03-23 14:03:36][ERROR][main.cpp:13]Logging... 82
+[2026-03-23 14:03:36][INFO ][main.cpp:14]Logging... 82
+[2026-03-23 14:03:37][ERROR][main.cpp:13]Logging... 83
+[2026-03-23 14:03:37][INFO ][main.cpp:14]Logging... 83
+[2026-03-23 14:03:37][ERROR][main.cpp:13]Logging... 84
+[2026-03-23 14:03:37][INFO ][main.cpp:14]Logging... 84
+[2026-03-23 14:03:37][ERROR][main.cpp:13]Logging... 85
+[2026-03-23 14:03:37][INFO ][main.cpp:14]Logging... 85
+[2026-03-23 14:03:37][ERROR][main.cpp:13]Logging... 86
+[2026-03-23 14:03:37][INFO ][main.cpp:14]Logging... 86
+[2026-03-23 14:03:38][ERROR][main.cpp:13]Logging... 87
+[2026-03-23 14:03:38][INFO ][main.cpp:14]Logging... 87
+[2026-03-23 14:03:38][ERROR][main.cpp:13]Logging... 88
+[2026-03-23 14:03:38][INFO ][main.cpp:14]Logging... 88
+[2026-03-23 14:03:38][ERROR][main.cpp:13]Logging... 89
+[2026-03-23 14:03:38][INFO ][main.cpp:14]Logging... 89
+[2026-03-23 14:03:38][ERROR][main.cpp:13]Logging... 90
+[2026-03-23 14:03:38][INFO ][main.cpp:14]Logging... 90
+[2026-03-23 14:03:38][ERROR][main.cpp:13]Logging... 91
+[2026-03-23 14:03:38][INFO ][main.cpp:14]Logging... 91
+[2026-03-23 14:03:39][ERROR][main.cpp:13]Logging... 92
+[2026-03-23 14:03:39][INFO ][main.cpp:14]Logging... 92
+[2026-03-23 14:03:39][ERROR][main.cpp:13]Logging... 93
+[2026-03-23 14:03:39][INFO ][main.cpp:14]Logging... 93
+[2026-03-23 14:03:39][ERROR][main.cpp:13]Logging... 94
+[2026-03-23 14:03:39][INFO ][main.cpp:14]Logging... 94
+[2026-03-23 14:03:39][ERROR][main.cpp:13]Logging... 95
+[2026-03-23 14:03:39][INFO ][main.cpp:14]Logging... 95
+[2026-03-23 14:03:39][ERROR][main.cpp:13]Logging... 96
+[2026-03-23 14:03:39][INFO ][main.cpp:14]Logging... 96
+[2026-03-23 14:03:40][ERROR][main.cpp:13]Logging... 97
+[2026-03-23 14:03:40][INFO ][main.cpp:14]Logging... 97
+[2026-03-23 14:03:40][ERROR][main.cpp:13]Logging... 98
+[2026-03-23 14:03:40][INFO ][main.cpp:14]Logging... 98
+[2026-03-23 14:03:40][ERROR][main.cpp:13]Logging... 99
+[2026-03-23 14:03:40][INFO ][main.cpp:14]Logging... 99
+[2026-03-23 14:03:40][ERROR][main.cpp:13]Logging... 100
+[2026-03-23 14:03:40][INFO ][main.cpp:14]Logging... 100
+[2026-03-23 14:03:40][ERROR][main.cpp:13]Logging... 101
+[2026-03-23 14:03:40][INFO ][main.cpp:14]Logging... 101
+[2026-03-23 14:03:41][ERROR][main.cpp:13]Logging... 102
+[2026-03-23 14:03:41][INFO ][main.cpp:14]Logging... 102
+[2026-03-23 14:03:41][ERROR][main.cpp:13]Logging... 103
+[2026-03-23 14:03:41][INFO ][main.cpp:14]Logging... 103
+[2026-03-23 14:03:41][ERROR][main.cpp:13]Logging... 104
+[2026-03-23 14:03:41][INFO ][main.cpp:14]Logging... 104
+[2026-03-23 14:03:41][ERROR][main.cpp:13]Logging... 105
+[2026-03-23 14:03:41][INFO ][main.cpp:14]Logging... 105
+[2026-03-23 14:03:41][ERROR][main.cpp:13]Logging... 106
+[2026-03-23 14:03:41][INFO ][main.cpp:14]Logging... 106
+[2026-03-23 14:03:42][ERROR][main.cpp:13]Logging... 107
+[2026-03-23 14:03:42][INFO ][main.cpp:14]Logging... 107
+[2026-03-23 14:03:42][ERROR][main.cpp:13]Logging... 108
+[2026-03-23 14:03:42][INFO ][main.cpp:14]Logging... 108
+[2026-03-23 14:03:42][ERROR][main.cpp:13]Logging... 109
+[2026-03-23 14:03:42][INFO ][main.cpp:14]Logging... 109
+[2026-03-23 14:03:42][ERROR][main.cpp:13]Logging... 110
+[2026-03-23 14:03:42][INFO ][main.cpp:14]Logging... 110
+[2026-03-23 14:03:42][ERROR][main.cpp:13]Logging... 111
+[2026-03-23 14:03:42][INFO ][main.cpp:14]Logging... 111
+[2026-03-23 14:03:43][ERROR][main.cpp:13]Logging... 112
+[2026-03-23 14:03:43][INFO ][main.cpp:14]Logging... 112
+[2026-03-23 14:03:43][ERROR][main.cpp:13]Logging... 113
+[2026-03-23 14:03:43][INFO ][main.cpp:14]Logging... 113
+[2026-03-23 14:03:43][ERROR][main.cpp:13]Logging... 114
+[2026-03-23 14:03:43][INFO ][main.cpp:14]Logging... 114
+[2026-03-23 14:03:43][ERROR][main.cpp:13]Logging... 115
+[2026-03-23 14:03:43][INFO ][main.cpp:14]Logging... 115
+[2026-03-23 14:03:43][ERROR][main.cpp:13]Logging... 116
+[2026-03-23 14:03:43][INFO ][main.cpp:14]Logging... 116
+[2026-03-23 14:03:44][ERROR][main.cpp:13]Logging... 117
+[2026-03-23 14:03:44][INFO ][main.cpp:14]Logging... 117
+[2026-03-23 14:03:44][ERROR][main.cpp:13]Logging... 118
+[2026-03-23 14:03:44][INFO ][main.cpp:14]Logging... 118
+[2026-03-23 14:03:44][ERROR][main.cpp:13]Logging... 119
+[2026-03-23 14:03:44][INFO ][main.cpp:14]Logging... 119
+[2026-03-23 14:03:44][ERROR][main.cpp:13]Logging... 120
+[2026-03-23 14:03:44][INFO ][main.cpp:14]Logging... 120
+[2026-03-23 14:03:44][ERROR][main.cpp:13]Logging... 121
+[2026-03-23 14:03:44][INFO ][main.cpp:14]Logging... 121
+[2026-03-23 14:03:45][ERROR][main.cpp:13]Logging... 122
+[2026-03-23 14:03:45][INFO ][main.cpp:14]Logging... 122
+[2026-03-23 14:03:45][ERROR][main.cpp:13]Logging... 123
+[2026-03-23 14:03:45][INFO ][main.cpp:14]Logging... 123
+[2026-03-23 14:03:45][ERROR][main.cpp:13]Logging... 124
+[2026-03-23 14:03:45][INFO ][main.cpp:14]Logging... 124
+[2026-03-23 14:03:45][ERROR][main.cpp:13]Logging... 125
+[2026-03-23 14:03:45][INFO ][main.cpp:14]Logging... 125
+[2026-03-23 14:03:45][ERROR][main.cpp:13]Logging... 126
+[2026-03-23 14:03:45][INFO ][main.cpp:14]Logging... 126
+[2026-03-23 14:03:46][ERROR][main.cpp:13]Logging... 127
+[2026-03-23 14:03:46][INFO ][main.cpp:14]Logging... 127
+[2026-03-23 14:03:46][ERROR][main.cpp:13]Logging... 128
+[2026-03-23 14:03:46][INFO ][main.cpp:14]Logging... 128
+[2026-03-23 14:03:46][ERROR][main.cpp:13]Logging... 129
+[2026-03-23 14:03:46][INFO ][main.cpp:14]Logging... 129
+[2026-03-23 14:03:46][ERROR][main.cpp:13]Logging... 130
+[2026-03-23 14:03:46][INFO ][main.cpp:14]Logging... 130
+[2026-03-23 14:03:46][ERROR][main.cpp:13]Logging... 131
+[2026-03-23 14:03:46][INFO ][main.cpp:14]Logging... 131
+[2026-03-23 14:03:47][ERROR][main.cpp:13]Logging... 132
+[2026-03-23 14:03:47][INFO ][main.cpp:14]Logging... 132
+[2026-03-23 14:03:47][ERROR][main.cpp:13]Logging... 133
+[2026-03-23 14:03:47][INFO ][main.cpp:14]Logging... 133
+[2026-03-23 14:03:47][ERROR][main.cpp:13]Logging... 134
+[2026-03-23 14:03:47][INFO ][main.cpp:14]Logging... 134
+[2026-03-23 14:03:47][ERROR][main.cpp:13]Logging... 135
+[2026-03-23 14:03:47][INFO ][main.cpp:14]Logging... 135
+[2026-03-23 14:03:47][ERROR][main.cpp:13]Logging... 136
+[2026-03-23 14:03:47][INFO ][main.cpp:14]Logging... 136
+[2026-03-23 14:03:48][ERROR][main.cpp:13]Logging... 137
+[2026-03-23 14:03:48][INFO ][main.cpp:14]Logging... 137
+[2026-03-23 14:03:48][ERROR][main.cpp:13]Logging... 138
+[2026-03-23 14:03:48][INFO ][main.cpp:14]Logging... 138
+[2026-03-23 14:03:48][ERROR][main.cpp:13]Logging... 139
+[2026-03-23 14:03:48][INFO ][main.cpp:14]Logging... 139
+[2026-03-23 14:03:48][ERROR][main.cpp:13]Logging... 140
+[2026-03-23 14:03:48][INFO ][main.cpp:14]Logging... 140
+[2026-03-23 14:03:48][ERROR][main.cpp:13]Logging... 141
+[2026-03-23 14:03:48][INFO ][main.cpp:14]Logging... 141
+[2026-03-23 14:03:49][ERROR][main.cpp:13]Logging... 142
+[2026-03-23 14:03:49][INFO ][main.cpp:14]Logging... 142
+[2026-03-23 14:03:49][ERROR][main.cpp:13]Logging... 143
+[2026-03-23 14:03:49][INFO ][main.cpp:14]Logging... 143
+[2026-03-23 14:03:49][ERROR][main.cpp:13]Logging... 144
+[2026-03-23 14:03:49][INFO ][main.cpp:14]Logging... 144
+[2026-03-23 14:03:49][ERROR][main.cpp:13]Logging... 145
+[2026-03-23 14:03:49][INFO ][main.cpp:14]Logging... 145
+[2026-03-23 14:03:49][ERROR][main.cpp:13]Logging... 146
+[2026-03-23 14:03:49][INFO ][main.cpp:14]Logging... 146
+[2026-03-23 14:03:50][ERROR][main.cpp:13]Logging... 147
+[2026-03-23 14:03:50][INFO ][main.cpp:14]Logging... 147
+[2026-03-23 14:03:50][ERROR][main.cpp:13]Logging... 148
+[2026-03-23 14:03:50][INFO ][main.cpp:14]Logging... 148
+[2026-03-23 14:03:50][ERROR][main.cpp:13]Logging... 149
+[2026-03-23 14:03:50][INFO ][main.cpp:14]Logging... 149
+[2026-03-23 14:03:50][ERROR][main.cpp:13]Logging... 150
+[2026-03-23 14:03:50][INFO ][main.cpp:14]Logging... 150
+[2026-03-23 14:03:50][ERROR][main.cpp:13]Logging... 151
+[2026-03-23 14:03:50][INFO ][main.cpp:14]Logging... 151
+[2026-03-23 14:03:51][ERROR][main.cpp:13]Logging... 152
+[2026-03-23 14:03:51][INFO ][main.cpp:14]Logging... 152
+[2026-03-23 14:03:51][ERROR][main.cpp:13]Logging... 153
+[2026-03-23 14:03:51][INFO ][main.cpp:14]Logging... 153
+[2026-03-23 14:03:51][ERROR][main.cpp:13]Logging... 154
+[2026-03-23 14:03:51][INFO ][main.cpp:14]Logging... 154
+[2026-03-23 14:03:51][ERROR][main.cpp:13]Logging... 155
+[2026-03-23 14:03:51][INFO ][main.cpp:14]Logging... 155
+[2026-03-23 14:03:51][ERROR][main.cpp:13]Logging... 156
+[2026-03-23 14:03:51][INFO ][main.cpp:14]Logging... 156
+[2026-03-23 14:03:52][ERROR][main.cpp:13]Logging... 157
+[2026-03-23 14:03:52][INFO ][main.cpp:14]Logging... 157
+[2026-03-23 14:03:52][ERROR][main.cpp:13]Logging... 158
+[2026-03-23 14:03:52][INFO ][main.cpp:14]Logging... 158
+[2026-03-23 14:03:52][ERROR][main.cpp:13]Logging... 159
+[2026-03-23 14:03:52][INFO ][main.cpp:14]Logging... 159
+[2026-03-23 14:03:52][ERROR][main.cpp:13]Logging... 160
+[2026-03-23 14:03:52][INFO ][main.cpp:14]Logging... 160
+[2026-03-23 14:03:52][ERROR][main.cpp:13]Logging... 161
+[2026-03-23 14:03:52][INFO ][main.cpp:14]Logging... 161
+[2026-03-23 14:03:53][ERROR][main.cpp:13]Logging... 162
+[2026-03-23 14:03:53][INFO ][main.cpp:14]Logging... 162
+[2026-03-23 14:03:53][ERROR][main.cpp:13]Logging... 163
+[2026-03-23 14:03:53][INFO ][main.cpp:14]Logging... 163
+[2026-03-23 14:03:53][ERROR][main.cpp:13]Logging... 164
+[2026-03-23 14:03:53][INFO ][main.cpp:14]Logging... 164
+[2026-03-23 14:03:53][ERROR][main.cpp:13]Logging... 165
+[2026-03-23 14:03:53][INFO ][main.cpp:14]Logging... 165
+[2026-03-23 14:03:53][ERROR][main.cpp:13]Logging... 166
+[2026-03-23 14:03:53][INFO ][main.cpp:14]Logging... 166
+[2026-03-23 14:03:54][ERROR][main.cpp:13]Logging... 167
+[2026-03-23 14:03:54][INFO ][main.cpp:14]Logging... 167
+[2026-03-23 14:03:54][ERROR][main.cpp:13]Logging... 168
+[2026-03-23 14:03:54][INFO ][main.cpp:14]Logging... 168
+[2026-03-23 14:03:54][ERROR][main.cpp:13]Logging... 169
+[2026-03-23 14:03:54][INFO ][main.cpp:14]Logging... 169
+[2026-03-23 14:03:54][ERROR][main.cpp:13]Logging... 170
+[2026-03-23 14:03:54][INFO ][main.cpp:14]Logging... 170
+[2026-03-23 14:03:54][ERROR][main.cpp:13]Logging... 171
+[2026-03-23 14:03:54][INFO ][main.cpp:14]Logging... 171
+[2026-03-23 14:03:55][ERROR][main.cpp:13]Logging... 172
+[2026-03-23 14:03:55][INFO ][main.cpp:14]Logging... 172
+[2026-03-23 14:03:55][ERROR][main.cpp:13]Logging... 173
+[2026-03-23 14:03:55][INFO ][main.cpp:14]Logging... 173
+[2026-03-23 14:03:55][ERROR][main.cpp:13]Logging... 174
+[2026-03-23 14:03:55][INFO ][main.cpp:14]Logging... 174
+[2026-03-23 14:03:55][ERROR][main.cpp:13]Logging... 175
+[2026-03-23 14:03:55][INFO ][main.cpp:14]Logging... 175
+[2026-03-23 14:03:55][ERROR][main.cpp:13]Logging... 176
+[2026-03-23 14:03:55][INFO ][main.cpp:14]Logging... 176
+[2026-03-23 14:03:56][ERROR][main.cpp:13]Logging... 177
+[2026-03-23 14:03:56][INFO ][main.cpp:14]Logging... 177
+[2026-03-23 14:03:56][ERROR][main.cpp:13]Logging... 178
+[2026-03-23 14:03:56][INFO ][main.cpp:14]Logging... 178
+[2026-03-23 14:03:56][ERROR][main.cpp:13]Logging... 179
+[2026-03-23 14:03:56][INFO ][main.cpp:14]Logging... 179
+[2026-03-23 14:03:56][ERROR][main.cpp:13]Logging... 180
+[2026-03-23 14:03:56][INFO ][main.cpp:14]Logging... 180
+[2026-03-23 14:03:56][ERROR][main.cpp:13]Logging... 181
+[2026-03-23 14:03:56][INFO ][main.cpp:14]Logging... 181
+[2026-03-23 14:03:57][ERROR][main.cpp:13]Logging... 182
+[2026-03-23 14:03:57][INFO ][main.cpp:14]Logging... 182
+[2026-03-23 14:03:57][ERROR][main.cpp:13]Logging... 183
+[2026-03-23 14:03:57][INFO ][main.cpp:14]Logging... 183
+[2026-03-23 14:03:57][ERROR][main.cpp:13]Logging... 184
+[2026-03-23 14:03:57][INFO ][main.cpp:14]Logging... 184
+[2026-03-23 14:03:57][ERROR][main.cpp:13]Logging... 185
+[2026-03-23 14:03:57][INFO ][main.cpp:14]Logging... 185
+[2026-03-23 14:03:57][ERROR][main.cpp:13]Logging... 186
+[2026-03-23 14:03:57][INFO ][main.cpp:14]Logging... 186
+[2026-03-23 14:03:58][ERROR][main.cpp:13]Logging... 187
+[2026-03-23 14:03:58][INFO ][main.cpp:14]Logging... 187
+[2026-03-23 14:03:58][ERROR][main.cpp:13]Logging... 188
+[2026-03-23 14:03:58][INFO ][main.cpp:14]Logging... 188
+[2026-03-23 14:03:58][ERROR][main.cpp:13]Logging... 189
+[2026-03-23 14:03:58][INFO ][main.cpp:14]Logging... 189
+[2026-03-23 14:03:58][ERROR][main.cpp:13]Logging... 190
+[2026-03-23 14:03:58][INFO ][main.cpp:14]Logging... 190
+[2026-03-23 14:03:58][ERROR][main.cpp:13]Logging... 191
+[2026-03-23 14:03:58][INFO ][main.cpp:14]Logging... 191
+[2026-03-23 14:03:59][ERROR][main.cpp:13]Logging... 192
+[2026-03-23 14:03:59][INFO ][main.cpp:14]Logging... 192
+[2026-03-23 14:03:59][ERROR][main.cpp:13]Logging... 193
+[2026-03-23 14:03:59][INFO ][main.cpp:14]Logging... 193
+[2026-03-23 14:03:59][ERROR][main.cpp:13]Logging... 194
+[2026-03-23 14:03:59][INFO ][main.cpp:14]Logging... 194
+[2026-03-23 14:03:59][ERROR][main.cpp:13]Logging... 195
+[2026-03-23 14:03:59][INFO ][main.cpp:14]Logging... 195
+[2026-03-23 14:03:59][ERROR][main.cpp:13]Logging... 196
+[2026-03-23 14:03:59][INFO ][main.cpp:14]Logging... 196
+[2026-03-23 14:04:00][ERROR][main.cpp:13]Logging... 197
+[2026-03-23 14:04:00][INFO ][main.cpp:14]Logging... 197
+[2026-03-23 14:04:00][ERROR][main.cpp:13]Logging... 198
+[2026-03-23 14:04:00][INFO ][main.cpp:14]Logging... 198
+[2026-03-23 14:04:00][ERROR][main.cpp:13]Logging... 199
+[2026-03-23 14:04:00][INFO ][main.cpp:14]Logging... 199
+[2026-03-23 14:04:00][ERROR][main.cpp:13]Logging... 200
+[2026-03-23 14:04:00][INFO ][main.cpp:14]Logging... 200
+[2026-03-23 14:04:00][ERROR][main.cpp:13]Logging... 201
+[2026-03-23 14:04:00][INFO ][main.cpp:14]Logging... 201
+[2026-03-23 14:04:01][ERROR][main.cpp:13]Logging... 202
+[2026-03-23 14:04:01][INFO ][main.cpp:14]Logging... 202
+[2026-03-23 14:04:01][ERROR][main.cpp:13]Logging... 203
+[2026-03-23 14:04:01][INFO ][main.cpp:14]Logging... 203
+[2026-03-23 14:04:01][ERROR][main.cpp:13]Logging... 204
+[2026-03-23 14:04:01][INFO ][main.cpp:14]Logging... 204
+[2026-03-23 14:04:01][ERROR][main.cpp:13]Logging... 205
+[2026-03-23 14:04:01][INFO ][main.cpp:14]Logging... 205
+[2026-03-23 14:04:01][ERROR][main.cpp:13]Logging... 206
+[2026-03-23 14:04:01][INFO ][main.cpp:14]Logging... 206
+[2026-03-23 14:04:02][ERROR][main.cpp:13]Logging... 207
+[2026-03-23 14:04:02][INFO ][main.cpp:14]Logging... 207
+[2026-03-23 14:04:02][ERROR][main.cpp:13]Logging... 208
+[2026-03-23 14:04:02][INFO ][main.cpp:14]Logging... 208
+[2026-03-23 14:04:02][ERROR][main.cpp:13]Logging... 209
+[2026-03-23 14:04:02][INFO ][main.cpp:14]Logging... 209
+[2026-03-23 14:04:02][ERROR][main.cpp:13]Logging... 210
+[2026-03-23 14:04:02][INFO ][main.cpp:14]Logging... 210
+[2026-03-23 14:04:02][ERROR][main.cpp:13]Logging... 211
+[2026-03-23 14:04:02][INFO ][main.cpp:14]Logging... 211
+[2026-03-23 14:04:03][ERROR][main.cpp:13]Logging... 212
+[2026-03-23 14:04:03][INFO ][main.cpp:14]Logging... 212
+[2026-03-23 14:04:03][ERROR][main.cpp:13]Logging... 213
+[2026-03-23 14:04:03][INFO ][main.cpp:14]Logging... 213
+[2026-03-23 14:04:03][ERROR][main.cpp:13]Logging... 214
+[2026-03-23 14:04:03][INFO ][main.cpp:14]Logging... 214
+[2026-03-23 14:04:03][ERROR][main.cpp:13]Logging... 215
+[2026-03-23 14:04:03][INFO ][main.cpp:14]Logging... 215
+[2026-03-23 14:04:03][ERROR][main.cpp:13]Logging... 216
+[2026-03-23 14:04:03][INFO ][main.cpp:14]Logging... 216
+[2026-03-23 14:04:04][ERROR][main.cpp:13]Logging... 217
+[2026-03-23 14:04:04][INFO ][main.cpp:14]Logging... 217
+[2026-03-23 14:04:04][ERROR][main.cpp:13]Logging... 218
+[2026-03-23 14:04:04][INFO ][main.cpp:14]Logging... 218
+[2026-03-23 14:04:04][ERROR][main.cpp:13]Logging... 219
+[2026-03-23 14:04:04][INFO ][main.cpp:14]Logging... 219
+[2026-03-23 14:04:04][ERROR][main.cpp:13]Logging... 220
+[2026-03-23 14:04:04][INFO ][main.cpp:14]Logging... 220
+[2026-03-23 14:04:04][ERROR][main.cpp:13]Logging... 221
+[2026-03-23 14:04:04][INFO ][main.cpp:14]Logging... 221
+[2026-03-23 14:04:05][ERROR][main.cpp:13]Logging... 222
+[2026-03-23 14:04:05][INFO ][main.cpp:14]Logging... 222
+[2026-03-23 14:04:05][ERROR][main.cpp:13]Logging... 223
+[2026-03-23 14:04:05][INFO ][main.cpp:14]Logging... 223
+[2026-03-23 14:04:05][ERROR][main.cpp:13]Logging... 224
+[2026-03-23 14:04:05][INFO ][main.cpp:14]Logging... 224
+[2026-03-23 14:04:05][ERROR][main.cpp:13]Logging... 225
+[2026-03-23 14:04:05][INFO ][main.cpp:14]Logging... 225
+[2026-03-23 14:04:05][ERROR][main.cpp:13]Logging... 226
+[2026-03-23 14:04:05][INFO ][main.cpp:14]Logging... 226
+[2026-03-23 14:04:06][ERROR][main.cpp:13]Logging... 227
+[2026-03-23 14:04:06][INFO ][main.cpp:14]Logging... 227
+[2026-03-23 14:04:06][ERROR][main.cpp:13]Logging... 228
+[2026-03-23 14:04:06][INFO ][main.cpp:14]Logging... 228
+[2026-03-23 14:04:06][ERROR][main.cpp:13]Logging... 229
+[2026-03-23 14:04:06][INFO ][main.cpp:14]Logging... 229
+[2026-03-23 14:04:06][ERROR][main.cpp:13]Logging... 230
+[2026-03-23 14:04:06][INFO ][main.cpp:14]Logging... 230
+[2026-03-23 14:04:06][ERROR][main.cpp:13]Logging... 231
+[2026-03-23 14:04:06][INFO ][main.cpp:14]Logging... 231
+[2026-03-23 14:04:07][ERROR][main.cpp:13]Logging... 232
+[2026-03-23 14:04:07][INFO ][main.cpp:14]Logging... 232
+[2026-03-23 14:04:07][ERROR][main.cpp:13]Logging... 233
+[2026-03-23 14:04:07][INFO ][main.cpp:14]Logging... 233
+[2026-03-23 14:04:07][ERROR][main.cpp:13]Logging... 234
+[2026-03-23 14:04:07][INFO ][main.cpp:14]Logging... 234
+[2026-03-23 14:04:07][ERROR][main.cpp:13]Logging... 235
+[2026-03-23 14:04:07][INFO ][main.cpp:14]Logging... 235
+[2026-03-23 14:04:07][ERROR][main.cpp:13]Logging... 236
+[2026-03-23 14:04:07][INFO ][main.cpp:14]Logging... 236
+[2026-03-23 14:04:08][ERROR][main.cpp:13]Logging... 237
+[2026-03-23 14:04:08][INFO ][main.cpp:14]Logging... 237
+[2026-03-23 14:04:08][ERROR][main.cpp:13]Logging... 238
+[2026-03-23 14:04:08][INFO ][main.cpp:14]Logging... 238
+[2026-03-23 14:04:08][ERROR][main.cpp:13]Logging... 239
+[2026-03-23 14:04:08][INFO ][main.cpp:14]Logging... 239
+[2026-03-23 14:04:08][ERROR][main.cpp:13]Logging... 240
+[2026-03-23 14:04:08][INFO ][main.cpp:14]Logging... 240
+[2026-03-23 14:04:08][ERROR][main.cpp:13]Logging... 241
+[2026-03-23 14:04:08][INFO ][main.cpp:14]Logging... 241
+[2026-03-23 14:04:09][ERROR][main.cpp:13]Logging... 242
+[2026-03-23 14:04:09][INFO ][main.cpp:14]Logging... 242
+[2026-03-23 14:04:09][ERROR][main.cpp:13]Logging... 243
+[2026-03-23 14:04:09][INFO ][main.cpp:14]Logging... 243
+[2026-03-23 14:04:09][ERROR][main.cpp:13]Logging... 244
+[2026-03-23 14:04:09][INFO ][main.cpp:14]Logging... 244
+[2026-03-23 14:04:09][ERROR][main.cpp:13]Logging... 245
+[2026-03-23 14:04:09][INFO ][main.cpp:14]Logging... 245
+[2026-03-23 14:04:09][ERROR][main.cpp:13]Logging... 246
+[2026-03-23 14:04:09][INFO ][main.cpp:14]Logging... 246
+[2026-03-23 14:04:10][ERROR][main.cpp:13]Logging... 247
+[2026-03-23 14:04:10][INFO ][main.cpp:14]Logging... 247
+[2026-03-23 14:04:10][ERROR][main.cpp:13]Logging... 248
+[2026-03-23 14:04:10][INFO ][main.cpp:14]Logging... 248
+[2026-03-23 14:04:10][ERROR][main.cpp:13]Logging... 249
+[2026-03-23 14:04:10][INFO ][main.cpp:14]Logging... 249
+[2026-03-23 14:04:10][ERROR][main.cpp:13]Logging... 250
+[2026-03-23 14:04:10][INFO ][main.cpp:14]Logging... 250
+[2026-03-23 14:04:10][ERROR][main.cpp:13]Logging... 251
+[2026-03-23 14:04:10][INFO ][main.cpp:14]Logging... 251
+[2026-03-23 14:04:11][ERROR][main.cpp:13]Logging... 252
+[2026-03-23 14:04:11][INFO ][main.cpp:14]Logging... 252
+[2026-03-23 14:04:11][ERROR][main.cpp:13]Logging... 253
+[2026-03-23 14:04:11][INFO ][main.cpp:14]Logging... 253
+[2026-03-23 14:04:11][ERROR][main.cpp:13]Logging... 254
+[2026-03-23 14:04:11][INFO ][main.cpp:14]Logging... 254
+[2026-03-23 14:04:11][ERROR][main.cpp:13]Logging... 255
+[2026-03-23 14:04:11][INFO ][main.cpp:14]Logging... 255
