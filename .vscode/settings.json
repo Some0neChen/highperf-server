@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "/home/some0nechen/文档/code/CPPServer/asynclog"
+    "cmake.sourceDirectory": "${workspaceFolder}",
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json"
 }

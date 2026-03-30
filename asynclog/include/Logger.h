@@ -11,13 +11,18 @@
 #include <memory>
 #include <string>
 
+#define LOG_INFO(fmt, ...) \
+    Logger::getInstance().log(LOG_TYPE::INFO, __FILE__, __LINE__, pthread_self(), fmt, ##__VA_ARGS__)
+#define LOG_ERR(fmt, ...) \
+    Logger::getInstance().log(LOG_TYPE::ERR, __FILE__, __LINE__, pthread_self(), fmt, ##__VA_ARGS__)
+
 class Logger {
     std::shared_ptr<LogFile> logFile;
     std::shared_ptr<LogFlusher> logFlusher;
     std::shared_ptr<LogBuffer> logBuffer;
 
     Logger() {
-        const std::string file_dir("/home/some0nechen/文档/code/CPPServer/asynclog/log/");
+        const std::string file_dir("/home/some0nechen/文档/code/CPPServer/server/log/");
         logFile = std::make_shared<LogFile>(file_dir);
         logBuffer = std::make_shared<LogBuffer>();
         logFlusher = std::make_shared<LogFlusher>(logFile, logBuffer);
@@ -34,7 +39,7 @@ public:
         logFlusher->force_flush();
     }
 
-    RET_FLAG log(const LOG_TYPE type, const char* file_name, const unsigned int line,
+    RET_FLAG log(const LOG_TYPE type, const char* file_name, const unsigned int line, const pthread_t& thread_id,
         const char* fmt, ...) {
         va_list args;
         va_start(args, fmt);
@@ -46,9 +51,9 @@ public:
         file_idx = file_idx ? file_idx + 1 : file_name;
         
         char entry_buf[4096];
-        snprintf(entry_buf, 4096, "[%s][%s][%s:%u]%s\n",
+        snprintf(entry_buf, 4096, "[%s][%s][%s:%u][%ld]  %s\n",
             getTime(TIME_TYPE::YMDHMS_LOG).c_str(), type == LOG_TYPE::INFO ? "INFO " : "ERROR",
-            file_idx, line, log_buffer);
+            file_idx, line, thread_id, log_buffer);
         std::string entry_str(entry_buf);
         return logBuffer->push(entry_str);
     }

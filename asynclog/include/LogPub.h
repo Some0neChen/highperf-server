@@ -1,6 +1,6 @@
 #pragma once
-
-#include <iostream>
+#include <cstddef>
+#include <string>
 
 class Logger;
 
@@ -22,10 +22,5 @@ enum class TIME_TYPE {
     YMDHMS_LOG, // yyyy-mm-dd hh-mm-ss
     COUNT       // Number of time types
 };
-
-#define LOG_INFO(fmt, ...) \
-    Logger::getInstance().log(LOG_TYPE::INFO, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
-#define LOG_ERR(fmt, ...) \
-    Logger::getInstance().log(LOG_TYPE::ERR, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
 std::string getTime(TIME_TYPE time_type);
