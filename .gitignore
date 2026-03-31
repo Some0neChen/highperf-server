@@ -44,4 +44,6 @@
 *.log
 ./cache/*
 
+dir
+
 build/

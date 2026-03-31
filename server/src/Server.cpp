@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <asm-generic/socket.h>
 #include <atomic>
 #include <cctype>
 #include <cerrno>
@@ -76,6 +77,9 @@ int main(int argc, char* argv[]) {
         LOG_ERR("Socket listening failed");
         exit(EXIT_FAILURE);
     }
+    int opt = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    fcntl(sockfd, F_SETFL, O_NONBLOCK); // 坑一：监听套接字必须设置为非阻塞，否则在accept时可能会被阻塞，导致整个服务器无法响应其他事件。
 
     shared_ptr<ThreadPool<function<EVENT_STATUS()>>> threadPool =
         make_shared<ThreadPool<function<EVENT_STATUS()>>>();
@@ -111,12 +115,10 @@ int main(int argc, char* argv[]) {
         LOG_INFO("get epoll wait ret %d", ret);
         for (int i = 0; i < ret; ++i) {
             LOG_INFO("get trigger fd %d", events[i].data.fd);
-            threadPool->add_task([&events, i]() {
-                if (ConnectionManager::get_manager()[events[i].data.fd] == nullptr) {
-                    return EVENT_STATUS::EPOLL_EVENT_MISS;
-                }
-                return ConnectionManager::get_manager()[events[i].data.fd]->handle_event(events[i].events);
-            });
+            if (ConnectionManager::get_manager()[events[i].data.fd] == nullptr) {
+                return EVENT_STATUS::EPOLL_EVENT_MISS;
+            }
+            ConnectionManager::get_manager()[events[i].data.fd]->handle_event(events[i].events);
         }
     }
     close(sockfd);

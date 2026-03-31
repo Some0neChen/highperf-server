@@ -35,3 +35,4 @@ find_package(Threads REQUIRED)
 # 这样你只需要在根目录执行一次编译命令，所有模块都会自动按顺序编译
 add_subdirectory(asynclog)
 add_subdirectory(server)
+add_subdirectory(tool)

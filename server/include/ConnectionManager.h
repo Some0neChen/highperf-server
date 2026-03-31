@@ -34,6 +34,10 @@ public:
     ConnectionManager& operator=(const ConnectionManager&&) = delete;
 
     void reset_connection(const int& fd) {
+        std::lock_guard<std::mutex> lock(conn_mutex_);
+        if (fd >= conn_size_) {
+            return;
+        }
         auto ret = epoll_ctl(this->epoll_fd_, EPOLL_CTL_DEL, fd, nullptr);
         if (ret == -1) {
             LOG_ERR("epoll del fd err.");
@@ -56,6 +60,7 @@ public:
 
     EVENT_STATUS add_connection(const int& fd, unsigned int listen_state, std::shared_ptr<EventHandler> conn) {
         if (fd >= conn_size_) {
+            std::lock_guard<std::mutex> lock(conn_mutex_);
             conn_size_ += (conn_size_>>1);
             connections_.reserve(conn_size_);
             connections_.resize(conn_size_);
@@ -76,6 +81,7 @@ public:
     }
 
     std::shared_ptr<EventHandler> operator[](const int& fd) {
+        std::lock_guard<std::mutex> lock(conn_mutex_);
         if (fd >= conn_size_) {
             return nullptr;
         }

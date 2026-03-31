@@ -3,6 +3,7 @@
 #include "ServerPub.h"
 #include <cerrno>
 #include <cstring>
+#include <fcntl.h>
 #include <memory>
 #include <netinet/in.h>
 #include <sys/epoll.h>
@@ -29,6 +30,8 @@ EVENT_STATUS ListenHandler::handle_event(unsigned int state) {
         LOG_ERR("get client fd err.");
         return EVENT_STATUS::ACCEPT_FD_ERR;
     }
+    fcntl(client_fd, F_SETFL, O_NONBLOCK);
+
     sockaddr_in* client_addr = reinterpret_cast<sockaddr_in*>(&addr);
     LOG_INFO("get client fd:%d [%u:%u] connection.", client_fd, ntohl(client_addr->sin_addr.s_addr), ntohs(client_addr->sin_port));
 
