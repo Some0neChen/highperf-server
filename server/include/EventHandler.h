@@ -3,9 +3,11 @@
 #include <array>
 #include <memory>
 #include <unistd.h>
+#include <vector>
 #include "ServerPub.h"
 #include "RequestBuffer.h"
 
+class Reactor;
 class EventHandler {
 protected:
     int fd_;
@@ -15,22 +17,29 @@ public:
     virtual EVENT_STATUS handle_event(unsigned int state) = 0;
 };
 
+/*
+    socket_fd监听器处理类
+*/
 class ClientHandler : public EventHandler {
 public:
-    static constexpr size_t BUFFER_SIZE = 2048;
-    ClientHandler(int client_fd, std::shared_ptr<BufferPool<std::array<char, ClientHandler::BUFFER_SIZE>>> pool)
-        : EventHandler(client_fd), buffer_pool_(pool) {}
+    ClientHandler(const int&,
+        std::shared_ptr<BufferPool<std::array<char, SPECS_VALUE::FD_READ_SIZE>>>&,
+        std::shared_ptr<Reactor>&);
     EVENT_STATUS handle_event(unsigned int state) override;
 private:
-    std::shared_ptr<BufferPool<std::array<char, BUFFER_SIZE>>> buffer_pool_;
+    std::shared_ptr<BufferPool<std::array<char, SPECS_VALUE::FD_READ_SIZE>>> buffer_pool_;
+    std::shared_ptr<Reactor> reactor_; // 客户端存放的是当前所受管理的Reactor
 };
 
 class ListenHandler : public EventHandler {
     int epoll_fd_;
-    std::shared_ptr<BufferPool<std::array<char, ClientHandler::BUFFER_SIZE>>> buffer_pool_;
+    std::shared_ptr<BufferPool<std::array<char, SPECS_VALUE::FD_READ_SIZE>>> buffer_pool_;
+    std::shared_ptr<std::vector<std::shared_ptr<Reactor>>> reactors_; // 服务端村粗轮询备Reactor表
+    unsigned int robin_count_; // 轮询计数
 public:
-    ListenHandler(int listen_fd, int epoll, std::shared_ptr<BufferPool<std::array<char, ClientHandler::BUFFER_SIZE>>> pool) 
-        : EventHandler(listen_fd), epoll_fd_(epoll), buffer_pool_(pool) {}
+    ListenHandler(const int&, int&,
+        std::shared_ptr<BufferPool<std::array<char, SPECS_VALUE::FD_READ_SIZE>>>&,
+        std::shared_ptr<std::vector<std::shared_ptr<Reactor>>>&);
     ~ListenHandler();
     EVENT_STATUS handle_event(unsigned int state) override;
 };

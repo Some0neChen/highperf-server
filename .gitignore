@@ -42,7 +42,9 @@
 
 # log files
 *.log
-./cache/*
+./.cache/*
+
+*.idx
 
 dir
 

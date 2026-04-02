@@ -14,10 +14,10 @@
 #include <queue>
 
 struct TaskPacket {
-    std::shared_ptr<std::array<char, ClientHandler::BUFFER_SIZE>> buffer;
+    std::shared_ptr<std::array<char, SPECS_VALUE::FD_READ_SIZE>> buffer;
     int fd;
     size_t len;
-    TaskPacket(const std::shared_ptr<std::array<char, ClientHandler::BUFFER_SIZE>>& buffer, const int& fd, const size_t& len) : 
+    TaskPacket(const std::shared_ptr<std::array<char, SPECS_VALUE::FD_READ_SIZE>>& buffer, const int& fd, const size_t& len) : 
         buffer(buffer), fd(fd), len(len) {}
 };
 
@@ -66,7 +66,7 @@ public:
         });
     }
 
-    void add_task(std::shared_ptr<std::array<char, ClientHandler::BUFFER_SIZE>> buf, int fd, size_t len) {
+    void add_task(std::shared_ptr<std::array<char, SPECS_VALUE::FD_READ_SIZE>> buf, int fd, size_t len) {
         LOG_INFO("fd[%d] push task into queue. buf len %d", fd, len);
         std::lock_guard<std::mutex> lock(this->mutex_);
         task_queue_.push(std::make_shared<TaskPacket>(buf, fd, len));

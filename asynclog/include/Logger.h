@@ -51,7 +51,7 @@ public:
         file_idx = file_idx ? file_idx + 1 : file_name;
         
         char entry_buf[4096];
-        snprintf(entry_buf, 4096, "[%s][%s][%s:%u][%#x]  %s\n",
+        snprintf(entry_buf, 4096, "[%s][%s][%s:%u][%lx]  %s\n",
             getTime(TIME_TYPE::YMDHMS_LOG).c_str(), type == LOG_TYPE::INFO ? "INFO " : "ERROR",
             file_idx, line, thread_id, log_buffer);
         std::string entry_str(entry_buf);
