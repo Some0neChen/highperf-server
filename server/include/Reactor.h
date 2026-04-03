@@ -30,17 +30,30 @@ class Reactor
         while (reactor_running_state_) {
             auto trig_times = epoll_wait(this->epoll_fd_, events, MAX_EVENTS, -1);
             for (int i = 0; i < trig_times; ++i) {
-                std::lock_guard<std::mutex> lock(conn_mutex_);
-                if (connections_.at(events[i].data.fd) == nullptr) {
-                    continue;
+                std::shared_ptr<EventHandler> handler;
+                {
+                    std::lock_guard<std::mutex> lock(conn_mutex_);
+                    auto find_iter = connections_.find(events[i].data.fd);
+                    if (find_iter == connections_.end() || find_iter->second == nullptr) { // at会抛出异常，此处用find
+                        LOG_ERR("Reactor[%d] find handler[%d] err.", this->epoll_fd_, events[i].data.fd);
+                        continue;
+                    }
+                    handler = find_iter->second;
                 }
-                auto handler = connections_.at(events[i].data.fd);
                 auto state = events[i].events;
                 thread_pool_->add_task([this, handler, state]() {
                     return handler->handle_event(state);
                 });
             }
         }
+    }
+
+    // 未使用
+    std::shared_ptr<EventHandler> operator[](const int& fd) {
+        if (connections_.find(fd) == connections_.end()) {
+            return nullptr;
+        }
+        return connections_[fd];
     }
 public:
     Reactor(std::shared_ptr<ThreadPool<std::function<EVENT_STATUS()>>>& thread_pool) :
@@ -79,12 +92,14 @@ public:
     }
 
     ~Reactor() { // 担心不加锁有问题
+        reactor_running_state_.store(false);
         for (auto conn_ : connections_) {
             if (conn_.second == nullptr) {
                 continue;
             }
             reset_connection(conn_.first);
         }
+        close(this->epoll_fd_);
     }
 
     EVENT_STATUS add_connection(const int& fd, unsigned int listen_state, std::shared_ptr<EventHandler> conn) {
@@ -111,14 +126,6 @@ public:
 
         connections_[fd] = conn;
         return EVENT_STATUS::OK;
-    }
-
-    std::shared_ptr<EventHandler> operator[](const int& fd) {
-        std::lock_guard<std::mutex> lock(conn_mutex_);
-        if (connections_.find(fd) == connections_.end()) {
-            return nullptr;
-        }
-        return connections_[fd];
     }
 
     int get_epoll_fd() {

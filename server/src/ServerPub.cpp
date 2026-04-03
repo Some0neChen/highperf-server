@@ -73,7 +73,7 @@ std::shared_ptr<Reactor> tcp_server_main_reactor_register(const int& socket_fd,
     // 轮询副reactor初始化
     auto reactor_pool = std::make_shared<std::vector<std::shared_ptr<Reactor>>>();
     reactor_pool->reserve(3);
-    for (int i = 0; i < reactor_pool->capacity(); ++i) {
+    for (int i = 0; i < reactor_pool->size(); ++i) {
         reactor_pool->push_back(std::make_shared<Reactor>(threadPool));
     }
     auto epoll_fd = mainReacotr->get_epoll_fd();

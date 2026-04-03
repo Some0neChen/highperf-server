@@ -24,6 +24,31 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
+# 4. 配置ASAN及TSAN编译选项
+# 1. 定义三个自定义开关，默认都是 OFF（关闭）
+option(USE_ASAN "Enable AddressSanitizer for Memory Checking" OFF)          # [作用]：定义一个开关，控制是否启用 ASAN 内存检查
+option(USE_TSAN "Enable ThreadSanitizer for Race/Deadlock Checking" OFF)    # [作用]：定义一个开关，控制是否启用 TSan 线程/死锁检查
+
+# 2. 安全校验：ASAN 和 TSan 绝对不能同时开启！
+if(USE_ASAN AND USE_TSAN)
+    message(FATAL_ERROR "师弟别闹！ASAN 和 TSan 不能同时开启，编译器会打架的！")
+endif()
+
+# 3. 如果开启了 ASAN
+if(USE_ASAN)
+    message(STATUS "🟢 ASAN (Memory Check) is ENABLED")
+    # -fno-omit-frame-pointer 是为了让报错时的调用栈更清晰
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -g -fno-omit-frame-pointer")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+endif()
+
+# 4. 如果开启了 TSan (死锁与竞态检测)
+if(USE_TSAN)
+    message(STATUS "🔵 TSan (Thread/Deadlock Check) is ENABLED")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread -g")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=thread")
+endif()
+
 # 5. 查找必要的库 (比如你一直在用的 pthread)
 # [作用]：在全系统范围内寻找线程库（pthread）
 # [原因]：你的 ChatServer 和 LogFlusher 都严重依赖多线程，必须引入底层库支持

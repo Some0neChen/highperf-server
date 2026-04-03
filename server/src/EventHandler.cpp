@@ -18,10 +18,6 @@ EventHandler::~EventHandler() {
     close(this->fd_);
 }
 
-ListenHandler::~ListenHandler() {
-    close(this->epoll_fd_);
-}
-
 ListenHandler::ListenHandler(const int& listen_fd, int& epoll,
     std::shared_ptr<BufferPool<std::array<char, SPECS_VALUE::FD_READ_SIZE>>>& pool,
     std::shared_ptr<std::vector<std::shared_ptr<Reactor>>>& reactors) :
@@ -57,7 +53,7 @@ EVENT_STATUS ListenHandler::handle_event(unsigned int state)
             return EVENT_STATUS::CLIENT_READ_ERR;
         }
         sockaddr_in* client_addr = reinterpret_cast<sockaddr_in*>(&addr);
-        LOG_INFO("get client fd:%d [%u:%u] connection.", client_fd, inet_ntoa(client_addr->sin_addr), ntohs(client_addr->sin_port));
+        LOG_INFO("get client fd:%d [%s:%u] connection.", client_fd, inet_ntoa(client_addr->sin_addr), ntohs(client_addr->sin_port));
         auto listen_state = EPOLLIN | EPOLLET | EPOLLRDHUP;
         ++this->robin_count_;
         auto reactor = this->reactors_->at(robin_count_ % this->reactors_->size());
@@ -83,9 +79,13 @@ ClientHandler::ClientHandler(const int& fd,
 EVENT_STATUS ClientHandler::handle_event(unsigned int state)
 {
     LOG_INFO("Client fd[%d] readding begain.", this->fd_);
+    if (this->reactor_.lock() == nullptr) {
+        LOG_ERR("Client fd[%d] get reactor failed. The reactor is already released.", this->fd_);
+        return EVENT_STATUS::CLIENT_UNBIND_REACTOR_ERR;
+    }
     if (state & EPOLLRDHUP) {
         LOG_INFO("Client fd[%d] closed connection.", this->fd_);
-        this->reactor_->reset_connection(this->fd_);
+        this->reactor_.lock()->reset_connection(this->fd_);
         return EVENT_STATUS::OK;
     }
     if (!(state & EPOLLIN)) {
@@ -94,7 +94,7 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
     }
     while (true) {
         auto buf = this->buffer_pool_->get_empty_buffer();
-        size_t len = read(this->fd_, buf->data(), buf->size());
+        int len = read(this->fd_, buf->data(), buf->size()); // len不能用size_t，因为size_t本质是无符号数，没有-1
         if (len == -1) {
             if (errno == EINTR) {
                 LOG_INFO("System interrupt client fd[%d] reading. errono[%d]", this->fd_, errno);
