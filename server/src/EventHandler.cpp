@@ -83,7 +83,7 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
         LOG_ERR("Client fd[%d] get reactor failed. The reactor is already released.", this->fd_);
         return EVENT_STATUS::CLIENT_UNBIND_REACTOR_ERR;
     }
-    if (state & EPOLLRDHUP) {
+    if (state & EPOLLRDHUP) { // 客户端退出
         LOG_INFO("Client fd[%d] closed connection.", this->fd_);
         this->reactor_.lock()->reset_connection(this->fd_);
         return EVENT_STATUS::OK;
