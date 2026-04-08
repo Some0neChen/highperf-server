@@ -1,6 +1,5 @@
 #pragma once
 
-#include "EventHandler.h"
 #include "Logger.h"
 #include "ServerPub.h"
 #include "ThreadPool.h"
@@ -12,6 +11,7 @@
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <thread>
 
 struct TaskPacket {
     std::shared_ptr<std::array<char, SPECS_VALUE::FD_READ_SIZE>> buffer;
@@ -27,6 +27,7 @@ class TaskManager {
     std::mutex mutex_;
     std::condition_variable trigger_;
     std::atomic<bool> running_state_;
+    std::thread task_listen_thread_;
     TaskManager() {
         thread_pool_ = nullptr;
     }
@@ -39,13 +40,16 @@ public:
     ~TaskManager() {
         running_state_.store(false);
         trigger_.notify_all();
+        if (task_listen_thread_.joinable()) {
+             task_listen_thread_.join();
+        }
     }
 
     void task_listen_thread_func() {
         while (running_state_.load()) {
             std::unique_lock<std::mutex> lock(mutex_);
             trigger_.wait(lock, [this]() {
-                return running_state_.load() && !task_queue_.empty();
+                return !running_state_.load() || !task_queue_.empty();
             });
             while (!task_queue_.empty()) {
                 auto task = std::move(task_queue_.front());
@@ -59,10 +63,9 @@ public:
 
     void register_thread_pool(std::shared_ptr<ThreadPool<std::function<EVENT_STATUS()>>> thread_pool) {
         this->thread_pool_ = thread_pool;
-        running_state_ = true;
-        this->thread_pool_->add_task([this] () {
+        running_state_.store(true);
+        task_listen_thread_ = std::thread([this]() {
             this->task_listen_thread_func();
-            return EVENT_STATUS::OK;
         });
     }
 

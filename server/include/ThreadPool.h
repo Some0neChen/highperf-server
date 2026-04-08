@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <deque>
 #include <mutex>
@@ -16,13 +17,13 @@ class ThreadPool
 {
     std::mutex mutex_;
     sem_t sem_;
-    bool running_state_;
+    std::atomic<bool> running_state_;
     std::vector<std::thread> thread_pool_;
     std::queue<T, std::deque<T>> task_queue_;
     size_t thread_num;
 
     void worker_routine() {
-        while (running_state_) {
+        while (running_state_.load()) {
             T task;
             sem_wait(&sem_);
             {
@@ -38,7 +39,8 @@ class ThreadPool
         }
     }
 public:
-    ThreadPool(size_t num = 8) : running_state_(true), thread_num(num) {
+    ThreadPool(size_t num = 8) : thread_num(num) {
+        running_state_.store(true);
         sem_init(&sem_, PTHREAD_PROCESS_PRIVATE, 0);
         thread_pool_.reserve(thread_num);
         for (int i = 0; i < thread_num; ++i) {
@@ -47,7 +49,7 @@ public:
     }
 
     ~ThreadPool() {
-        running_state_ = false;
+        running_state_.store(false);
         for (int i = 0; i < thread_num; ++i) {
             sem_post(&sem_);
         }

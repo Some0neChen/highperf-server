@@ -1,10 +1,13 @@
 #pragma once
 
 #include <atomic>
+#include <cerrno>
 #include <cstddef>
 #include <memory>
 #include <mutex>
 #include <sys/epoll.h>
+#include <sys/eventfd.h>
+#include <thread>
 #include <unistd.h>
 #include <unordered_map>
 #include <functional>
@@ -19,7 +22,9 @@ class Reactor
     std::mutex conn_mutex_;
     size_t conn_size_;
     int epoll_fd_;
+    int wake_fd_;
     std::atomic<bool> reactor_running_state_;
+    std::thread reactor_thread_;
     std::shared_ptr<ThreadPool<std::function<EVENT_STATUS()>>> thread_pool_;
     constexpr static size_t MAX_EVENTS = 1024;
 
@@ -30,6 +35,9 @@ class Reactor
         while (reactor_running_state_) {
             auto trig_times = epoll_wait(this->epoll_fd_, events, MAX_EVENTS, -1);
             for (int i = 0; i < trig_times; ++i) {
+                if (events[i].data.fd == this->wake_fd_) {
+                    return;
+                }
                 std::shared_ptr<EventHandler> handler;
                 {
                     std::lock_guard<std::mutex> lock(conn_mutex_);
@@ -58,19 +66,29 @@ class Reactor
 public:
     Reactor(std::shared_ptr<ThreadPool<std::function<EVENT_STATUS()>>>& thread_pool) :
         thread_pool_(thread_pool) {
+        // 规定该reactor最多可接待的连接数，超过后将自动扩容
         conn_size_ = 1024;
+
+        // epoll 创建及监听wake_fd，reactor触发析构时通过wake_fd来结束监听线程
         epoll_fd_ = epoll_create(1);
         if (epoll_fd_ == -1) {
             LOG_ERR("epoll create err.");
             exit(EXIT_FAILURE);
         }
+        this->wake_fd_ = eventfd(0, EFD_NONBLOCK);
+        if (wake_fd_ == -1) {
+            LOG_ERR("Reactor[%d] create wakefd err. errorno %d.", this->epoll_fd_, errno);
+            exit(EXIT_FAILURE);
+        }
+        epoll_event event;
+        event.data.fd = this->wake_fd_;
+        event.events = EPOLLIN | EPOLLET;
+        epoll_ctl(this->epoll_fd_, EPOLL_CTL_ADD, this->wake_fd_, &event);
         LOG_INFO("Reactor[%d] initialization. Connection pool size %u.", epoll_fd_, conn_size_);
+
         connections_.reserve(conn_size_);
         reactor_running_state_.store(true);
-        thread_pool_->add_task([this](){
-            this->reactor_running_thread();
-            return EVENT_STATUS::OK;
-        });
+        reactor_thread_ = std::thread(&Reactor::reactor_running_thread, this);
     }
 
     Reactor(const Reactor&) = delete;
@@ -93,6 +111,11 @@ public:
 
     ~Reactor() { // 担心不加锁有问题
         reactor_running_state_.store(false);
+        int val = 1;
+        write(this->wake_fd_, &val, sizeof(val)); // 唤醒epoll监听线程
+        if (reactor_thread_.joinable()) {
+            reactor_thread_.join();
+        }
         for (auto conn_ : connections_) {
             if (conn_.second == nullptr) {
                 continue;
@@ -100,6 +123,7 @@ public:
             reset_connection(conn_.first);
         }
         close(this->epoll_fd_);
+        close(this->wake_fd_);
     }
 
     EVENT_STATUS add_connection(const int& fd, unsigned int listen_state, std::shared_ptr<EventHandler> conn) {

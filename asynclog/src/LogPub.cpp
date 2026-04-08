@@ -21,7 +21,7 @@ std::string getTime(TIME_TYPE time_type) {
     struct tm result_tm;
     localtime_r(&now_c, &result_tm); // 相比于localtime，localtime_r是线程安全的
     char time_buffer[MAX_TIME_STRING_LENGTH];
-    size_t date_len = strftime(time_buffer, sizeof(time_buffer), TIME_FORMAT[static_cast<size_t>(time_type)], &result_tm);
+    ssize_t date_len = strftime(time_buffer, sizeof(time_buffer), TIME_FORMAT[static_cast<size_t>(time_type)], &result_tm);
 
     if (date_len == 0) {
         return ""; // Return an empty string to indicate failure

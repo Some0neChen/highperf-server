@@ -94,7 +94,7 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
     }
     while (true) {
         auto buf = this->buffer_pool_->get_empty_buffer();
-        int len = read(this->fd_, buf->data(), buf->size()); // len不能用size_t，因为size_t本质是无符号数，没有-1
+        ssize_t len = read(this->fd_, buf->data(), buf->size()); // len不能用size_t，因为size_t本质是无符号数，没有-1
         if (len == -1) {
             if (errno == EINTR) {
                 LOG_INFO("System interrupt client fd[%d] reading. errono[%d]", this->fd_, errno);
