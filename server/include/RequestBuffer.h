@@ -22,7 +22,7 @@ public:
     }
 
     BUF_SIZE readable_size() const {
-        return buffer_.size() - read_pos_;
+        return write_pos_ - read_pos_;
     }
 
     T* get_data() {
@@ -30,7 +30,7 @@ public:
     }
 
     BUF_SIZE get_write_pos() const {
-        return  write_pos_;
+        return write_pos_;
     }
 
     BUF_SIZE get_read_pos() const {
@@ -61,7 +61,7 @@ public:
         }
 
         // 否则需要扩容缓冲区，将新数据写入剩余空间
-        BUF_SIZE old_size = buffer_.size();
+        BUF_SIZE old_size = write_it - buffer_.begin();
         buffer_.resize(old_size + extra_len);
         LOG_INFO("Enlarge buffer. oldSize [%u], newSize [%u], writeSize [%u]", old_size, buffer_.size(), extra_len);
         // 注意resize后迭代器失效，所以需要重新获取写入位置
@@ -103,6 +103,8 @@ private:
         }
         std::vector<T> new_buf = std::vector<T>(buffer_.begin() + read_pos_, buffer_.begin() + write_pos_);
         new_buf.resize(SPECS_VALUE::STANDARD_REQUEST_BUF_SIZE);
+        write_pos_ = write_pos_ - read_pos_;
+        read_pos_ = 0;
         buffer_.swap(new_buf);
     }
 };

@@ -2,7 +2,6 @@
 #include "Logger.h"
 #include "ServerPub.h"
 #include <arpa/inet.h>
-#include <bits/types/struct_iovec.h>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -79,13 +78,14 @@ ClientHandler::ClientHandler(const int& fd,
 EVENT_STATUS ClientHandler::handle_event(unsigned int state)
 {
     LOG_INFO("Client fd[%d] readding begain.", this->fd_);
-    if (this->reactor_.lock() == nullptr) {
+    auto reactor_ptr = this->reactor_.lock();
+    if (reactor_ptr == nullptr) {
         LOG_ERR("Client fd[%d] get reactor failed. The reactor is already released.", this->fd_);
         return EVENT_STATUS::CLIENT_UNBIND_REACTOR_ERR;
     }
     if (state & EPOLLRDHUP) { // 客户端退出
         LOG_INFO("Client fd[%d] closed connection.", this->fd_);
-        this->reactor_.lock()->reset_connection(this->fd_);
+        reactor_ptr->reset_connection(this->fd_);
         return EVENT_STATUS::OK;
     }
     if (!(state & EPOLLIN)) { // 不处理非读事件
@@ -106,7 +106,7 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
         // 客户端退出
         if (len == 0) {
             LOG_INFO("Client fd[%d] closed connection.", this->fd_);
-            this->reactor_.lock()->reset_connection(this->fd_);
+            reactor_ptr->reset_connection(this->fd_);
             return EVENT_STATUS::OK;
         }
 
@@ -126,12 +126,12 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
 
         // 更新缓冲区写入位置
         buffer_.update_write_pos(len, extra_buf);
-        LOG_INFO("Epoll[%d] Client fd[%d] receive msg success, len %u", this->reactor_.lock()->get_epoll_fd(), this->fd_, len);
+        LOG_INFO("Epoll[%d] Client fd[%d] receive msg success, len %u", reactor_ptr->get_epoll_fd(), this->fd_, len);
 
         // 将任务包推入线程池
         std::shared_ptr<TaskPacket> packet = std::make_shared<TaskPacket>(
             request_msg_parse(this->buffer_), this->fd_, len);
-        this->reactor_.lock()->thread_pool_->add_task([packet](){
+        reactor_ptr->thread_pool_->add_task([packet](){
             LOG_INFO("fd[%d] push task into queue. buf len %d", packet->fd, packet->len);
             return task_handle(packet);
         });
