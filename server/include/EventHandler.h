@@ -23,23 +23,30 @@ public:
 class ClientHandler : public EventHandler {
 public:
     ClientHandler(const int&,
-        std::shared_ptr<BufferPool<std::array<char, SPECS_VALUE::FD_READ_SIZE>>>&,
         std::shared_ptr<Reactor>&);
     EVENT_STATUS handle_event(unsigned int state) override;
+    RequestBuffer_<char> buffer_; // 客户端请求读写缓冲区
 private:
-    std::shared_ptr<BufferPool<std::array<char, SPECS_VALUE::FD_READ_SIZE>>> buffer_pool_;
-    std::weak_ptr<Reactor> reactor_; // 客户端存放的是当前所受管理的Reactor
+    // 客户端存放的是当前所受管理的Reactor
     // 因Reactor的Connection表中存放的EventHandler是ClientHandler，所以此处为避免循环引用，使用弱指针
+    std::weak_ptr<Reactor> reactor_;
 };
 
 class ListenHandler : public EventHandler {
     int epoll_fd_;
-    std::shared_ptr<BufferPool<std::array<char, SPECS_VALUE::FD_READ_SIZE>>> buffer_pool_;
-    std::shared_ptr<std::vector<std::shared_ptr<Reactor>>> reactors_; // 服务端村粗轮询备Reactor表
+    std::shared_ptr<std::vector<std::shared_ptr<Reactor>>> reactors_; // 服务端存储轮询备Reactor表
     unsigned int robin_count_; // 轮询计数
 public:
     ListenHandler(const int&, int&,
-        std::shared_ptr<BufferPool<std::array<char, SPECS_VALUE::FD_READ_SIZE>>>&,
         std::shared_ptr<std::vector<std::shared_ptr<Reactor>>>&);
     EVENT_STATUS handle_event(unsigned int state) override;
+};
+
+// 客户端请求任务包
+struct TaskPacket {
+    std::shared_ptr<std::vector<char>> buffer;
+    int fd;
+    size_t len;
+    TaskPacket(const std::shared_ptr<std::vector<char>>& buffer, const int& fd, const size_t& len) : 
+        buffer(buffer), fd(fd), len(len) {}
 };

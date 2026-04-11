@@ -17,7 +17,6 @@
 #include "RequestBuffer.h"
 #include "ServerPub.h"
 #include "ThreadPool.h"
-#include "TaskPacket.h"
 
 using namespace std;
 
@@ -47,11 +46,9 @@ int main(int argc, char* argv[]) {
     // 线程池、缓冲池、任务池初始化
     shared_ptr<ThreadPool<function<EVENT_STATUS()>>> threadPool =
         make_shared<ThreadPool<function<EVENT_STATUS()>>>(16);
-    auto buffer_pool = make_shared<BufferPool<std::array<char, SPECS_VALUE::FD_READ_SIZE>>>();
-    TaskManager::get_manager().register_thread_pool(threadPool);
 
     // TCP层主副Reactor初始化及挂接
-    auto ret = tcp_server_main_reactor_register(socket_fd, threadPool, buffer_pool);
+    auto ret = tcp_server_main_reactor_register(socket_fd, threadPool);
 
     // 维持主线程不挂
     while (server_running.load()) {

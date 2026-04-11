@@ -2,6 +2,7 @@
 #include "Logger.h"
 #include "ServerPub.h"
 #include <arpa/inet.h>
+#include <bits/types/struct_iovec.h>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -10,8 +11,8 @@
 #include <netinet/in.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 #include <unistd.h>
-#include "TaskPacket.h"
 #include "Reactor.h"
 
 EventHandler::~EventHandler() {
@@ -19,9 +20,8 @@ EventHandler::~EventHandler() {
 }
 
 ListenHandler::ListenHandler(const int& listen_fd, int& epoll,
-    std::shared_ptr<BufferPool<std::array<char, SPECS_VALUE::FD_READ_SIZE>>>& pool,
     std::shared_ptr<std::vector<std::shared_ptr<Reactor>>>& reactors) :
-    EventHandler(listen_fd), epoll_fd_(epoll), buffer_pool_(pool), reactors_(reactors), robin_count_(0)
+    EventHandler(listen_fd), epoll_fd_(epoll), reactors_(reactors), robin_count_(0)
 {
     if (fcntl(this->fd_, F_SETFL, O_NONBLOCK) < 0) {
         LOG_ERR("Server fd[%d] set O_NONBLOCK mode err.", this->fd_);
@@ -58,7 +58,7 @@ EVENT_STATUS ListenHandler::handle_event(unsigned int state)
         ++this->robin_count_;
         auto reactor = this->reactors_->at(robin_count_ % this->reactors_->size());
         auto ret = reactor->
-            add_connection(client_fd, listen_state, std::make_shared<ClientHandler>(client_fd, this->buffer_pool_, reactor));
+            add_connection(client_fd, listen_state, std::make_shared<ClientHandler>(client_fd, reactor));
         if (ret != EVENT_STATUS::OK) {
             LOG_ERR("epoll add client_fd err.");
             return ret;  
@@ -68,8 +68,8 @@ EVENT_STATUS ListenHandler::handle_event(unsigned int state)
 }
 
 ClientHandler::ClientHandler(const int& fd,
-        std::shared_ptr<BufferPool<std::array<char, SPECS_VALUE::FD_READ_SIZE>>>& buf_pool,
-        std::shared_ptr<Reactor>& reactor) : EventHandler(fd), buffer_pool_(buf_pool), reactor_(reactor)
+        std::shared_ptr<Reactor>& reactor) :
+            EventHandler(fd), reactor_(reactor)
 {
     if (fcntl(this->fd_, F_SETFL, O_NONBLOCK) < 0) {
         LOG_ERR("Client fd[%d] set O_NONBLOCK mode err.", this->fd_);
@@ -88,13 +88,29 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
         this->reactor_.lock()->reset_connection(this->fd_);
         return EVENT_STATUS::OK;
     }
-    if (!(state & EPOLLIN)) {
+    if (!(state & EPOLLIN)) { // 不处理非读事件
         LOG_ERR("Undefined epoll behavior. fd[%d].", this->fd_);
         return EVENT_STATUS::EPOLL_UNDEFINE_TRIG;
     }
     while (true) {
-        auto buf = this->buffer_pool_->get_empty_buffer();
-        ssize_t len = read(this->fd_, buf->data(), buf->size()); // len不能用size_t，因为size_t本质是无符号数，没有-1
+        // 采用readv分散读的方式，先将数据读入缓冲区剩余空间，如果数据长度超过剩余空间，则将溢出部分读入extra_buf中
+        iovec read_vec[2];
+        read_vec[0].iov_base = this->buffer_.get_data() + this->buffer_.get_write_pos();
+        read_vec[0].iov_len = this->buffer_.writable_size();
+        char extra_buf[65536];
+        read_vec[1].iov_base = extra_buf;
+        read_vec[1].iov_len = sizeof(extra_buf);
+        // len不能用size_t，因为size_t本质是无符号数，没有-1
+        ssize_t len = readv(this->fd_, read_vec, 2); 
+
+        // 客户端退出
+        if (len == 0) {
+            LOG_INFO("Client fd[%d] closed connection.", this->fd_);
+            this->reactor_.lock()->reset_connection(this->fd_);
+            return EVENT_STATUS::OK;
+        }
+
+        // 已读完或者发生错误
         if (len == -1) {
             if (errno == EINTR) {
                 LOG_INFO("System interrupt client fd[%d] reading. errono[%d]", this->fd_, errno);
@@ -107,7 +123,18 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
             LOG_INFO("Client fd[%d] occur readding failed. errorno[%d]", this->fd_, errno);
             return EVENT_STATUS::CLIENT_READ_ERR;
         }
-        TaskManager::get_manager().add_task(buf, this->fd_, len);
+
+        // 更新缓冲区写入位置
+        buffer_.update_write_pos(len, extra_buf);
+        LOG_INFO("Epoll[%d] Client fd[%d] receive msg success, len %u", this->reactor_.lock()->get_epoll_fd(), this->fd_, len);
+
+        // 将任务包推入线程池
+        std::shared_ptr<TaskPacket> packet = std::make_shared<TaskPacket>(
+            request_msg_parse(this->buffer_), this->fd_, len);
+        this->reactor_.lock()->thread_pool_->add_task([packet](){
+            LOG_INFO("fd[%d] push task into queue. buf len %d", packet->fd, packet->len);
+            return task_handle(packet);
+        });
     }
     
     return EVENT_STATUS::OK;

@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cerrno>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <sys/epoll.h>
@@ -27,6 +28,9 @@ class Reactor
     std::thread reactor_thread_;
     std::shared_ptr<ThreadPool<std::function<EVENT_STATUS()>>> thread_pool_;
     constexpr static size_t MAX_EVENTS = 1024;
+    // 将事件处理类设置为友元，以便其访问对应Reactor内注册的线程池
+    friend class ClientHandler;
+    friend class ListenHandler;
 
     void reactor_running_thread() {
         epoll_event events[MAX_EVENTS];
@@ -111,7 +115,7 @@ public:
 
     ~Reactor() { // 担心不加锁有问题
         reactor_running_state_.store(false);
-        int val = 1;
+        uint64_t val = 1;   // 通过向wake_fd写入数据来唤醒epoll监听线程，此处应该读写8字节
         write(this->wake_fd_, &val, sizeof(val)); // 唤醒epoll监听线程
         if (reactor_thread_.joinable()) {
             reactor_thread_.join();

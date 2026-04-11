@@ -5,7 +5,6 @@
 #include "ServerPub.h"
 #include "EventHandler.h"
 #include "Logger.h"
-#include "TaskPacket.h"
 #include <arpa/inet.h>
 #include <cerrno>
 #include <sys/epoll.h>
@@ -14,6 +13,7 @@
 #include <memory>
 #include <vector>
 #include "Reactor.h"
+#include "RequestBuffer.h"
 
 void http_parse() {
     // TODO
@@ -64,8 +64,7 @@ int init_socket_fd(int argc, char* argv[]) {
 }
 
 std::shared_ptr<Reactor> tcp_server_main_reactor_register(const int& socket_fd,
-    std::shared_ptr<ThreadPool<std::function<EVENT_STATUS()>>>& threadPool,
-    std::shared_ptr<BufferPool<std::array<char, SPECS_VALUE::FD_READ_SIZE>>>& buffer_pool)
+    std::shared_ptr<ThreadPool<std::function<EVENT_STATUS()>>>& threadPool)
 {
     // 主Reactor初始化
     std::shared_ptr<Reactor> mainReacotr = std::make_shared<Reactor>(threadPool);
@@ -73,14 +72,14 @@ std::shared_ptr<Reactor> tcp_server_main_reactor_register(const int& socket_fd,
     // 轮询副reactor初始化
     auto reactor_pool = std::make_shared<std::vector<std::shared_ptr<Reactor>>>();
     reactor_pool->reserve(3);
-    for (int i = 0; i < reactor_pool->size(); ++i) {
+    for (int i = 0; i < reactor_pool->capacity(); ++i) {
         reactor_pool->push_back(std::make_shared<Reactor>(threadPool));
     }
     auto epoll_fd = mainReacotr->get_epoll_fd();
 
     // 客户端连接接收处理器
     std::shared_ptr<ListenHandler> listen_handler
-        = std::make_shared<ListenHandler>(socket_fd, epoll_fd, buffer_pool, reactor_pool);
+        = std::make_shared<ListenHandler>(socket_fd, epoll_fd, reactor_pool);
     auto ret = mainReacotr->add_connection(socket_fd, EPOLLIN | EPOLLET, listen_handler);
 
     if (ret != EVENT_STATUS::OK) {
@@ -91,7 +90,7 @@ std::shared_ptr<Reactor> tcp_server_main_reactor_register(const int& socket_fd,
 
 EVENT_STATUS task_handle(std::shared_ptr<TaskPacket> task)
 {
-    task->buffer->at(task->len) = '\0';
+    task->buffer->push_back('\0'); // 模拟字符串结束符，后续改装http解析器时可以去掉
     LOG_INFO("Client fd[%d] handle msg[%s] beginning", task->fd, task->buffer->data());
     http_parse(); // 假装有http解析器
     std::string reply("Recive OK. Msg: ");
@@ -104,4 +103,13 @@ EVENT_STATUS task_handle(std::shared_ptr<TaskPacket> task)
     LOG_INFO("Client fd[%d] reply over. Expect replied len %d. Actually replied len %d.",
         task->fd, reply.size(), ret);
     return EVENT_STATUS::OK;
+}
+
+// 暂时模拟提取请求信息，后续改装http解析器
+std::shared_ptr<std::vector<char>> request_msg_parse(RequestBuffer_<char> &buffer)
+{
+    auto msg = std::make_shared<std::vector<char>>(
+        buffer.get_data() + buffer.get_read_pos(), buffer.get_data() + buffer.get_write_pos());
+    buffer.update_read_pos(msg->size());
+    return msg;
 }
