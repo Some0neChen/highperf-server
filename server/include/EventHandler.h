@@ -25,7 +25,7 @@ public:
     ClientHandler(const int&,
         std::shared_ptr<Reactor>&);
     EVENT_STATUS handle_event(unsigned int state) override;
-    RequestBuffer_<char> buffer_; // 客户端请求读写缓冲区
+    RequestBuffer<char> buffer_; // 客户端请求读写缓冲区
 private:
     // 客户端存放的是当前所受管理的Reactor
     // 因Reactor的Connection表中存放的EventHandler是ClientHandler，所以此处为避免循环引用，使用弱指针

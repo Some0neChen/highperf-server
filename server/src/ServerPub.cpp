@@ -106,7 +106,7 @@ EVENT_STATUS task_handle(std::shared_ptr<TaskPacket> task)
 }
 
 // 暂时模拟提取请求信息，后续改装http解析器
-std::shared_ptr<std::vector<char>> request_msg_parse(RequestBuffer_<char> &buffer)
+std::shared_ptr<std::vector<char>> request_msg_parse(RequestBuffer<char> &buffer)
 {
     auto msg = std::make_shared<std::vector<char>>(
         buffer.get_data() + buffer.get_read_pos(), buffer.get_data() + buffer.get_write_pos());

@@ -33,10 +33,10 @@ template <typename T>
 class ThreadPool;
 class ClientHandler;
 template <typename T>
-class RequestBuffer_;
+class RequestBuffer;
 
 EVENT_STATUS task_handle(std::shared_ptr<TaskPacket>); // 任务处理函数
 int init_socket_fd(int argc, char* argv[]);
 std::shared_ptr<Reactor> tcp_server_main_reactor_register(const int&,
     std::shared_ptr<ThreadPool<std::function<EVENT_STATUS()>>>&);
-std::shared_ptr<std::vector<char>> request_msg_parse(RequestBuffer_<char>&);
+std::shared_ptr<std::vector<char>> request_msg_parse(RequestBuffer<char>&);
