@@ -3,6 +3,7 @@
 #include "ServerPub.h"
 #include <arpa/inet.h>
 #include <cerrno>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
@@ -73,6 +74,8 @@ ClientHandler::ClientHandler(const int& fd,
     if (fcntl(this->fd_, F_SETFL, O_NONBLOCK) < 0) {
         LOG_ERR("Client fd[%d] set O_NONBLOCK mode err.", this->fd_);
     }
+    this->version_no.store(0);
+    this->update_expire_time();
 }
 
 EVENT_STATUS ClientHandler::handle_event(unsigned int state)
@@ -136,6 +139,90 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
             return task_handle(packet);
         });
     }
-    
+    this->update_expire_time();
+    return EVENT_STATUS::OK;
+}
+
+void ClientHandler::update_expire_time() {
+    this->version_no.fetch_add(1);
+    auto expired_time = std::chrono::steady_clock::now() + std::chrono::seconds(SPECS_VALUE::WEB_SERVER_TIMER_INTERVAL);
+    this->reactor_.lock()->add_timer_task(this->fd_, this->get_version_no(), expired_time);
+}
+
+void ClientHandler::update_expire_time(const std::chrono::steady_clock::time_point& time_point) {
+    this->version_no.fetch_add(1);
+    this->reactor_.lock()->add_timer_task(this->fd_, this->get_version_no(), time_point);
+}
+
+TimerHandler::TimerHandler(Reactor* reactor)
+        : EventHandler(0), reactor_(reactor)
+{
+    if (reactor == nullptr) {
+        LOG_ERR("TimerManager get shared reactor err.");
+        exit(EXIT_FAILURE);
+    }
+
+    // 设置定时器
+    itimerspec ts = { 0 };
+    // 如果设置成tv_nsec，则为毫秒级，且同时需要将tv_sec设置为0，否则会被当成秒级，导致定时器间隔过长
+    // 如果设置为0，则代表不启动定时器，除非后续通过timerfd_settime来设置定时器初始值，否则定时器将永远不会触发
+    ts.it_interval.tv_sec = SPECS_VALUE::WEB_SERVER_TIMER_INTERVAL; // 定时器间隔时间，单位秒
+    ts.it_value.tv_sec = SPECS_VALUE::WEB_SERVER_TIMER_INTERVAL;    // 定时器初始值，单位秒
+    this->fd_ = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+    if (this->fd_ == -1) {
+        LOG_ERR("Reactor[%d] create timerfd err. errorno %d.", reactor_->epoll_fd_, errno);
+        exit(EXIT_FAILURE);
+    }
+    auto ret = timerfd_settime(this->fd_, 0, &ts, nullptr);
+    if (ret == -1) {
+        LOG_ERR("Reactor[%d] set timerfd time err. errorno %d.", reactor_->epoll_fd_, errno);
+        exit(EXIT_FAILURE);
+    }
+    LOG_INFO("[%s]Reactor[%d] create and set timerfd[%d] successfully.", __func__, reactor_->epoll_fd_, this->fd_);
+    std::shared_ptr<EventHandler> timer_handler(this);
+    auto add_ret = reactor_->add_connection(this->fd_, EPOLLIN | EPOLLET, timer_handler);
+    LOG_INFO("[%s]Reactor[%d] add timer connection return %d.", __func__, reactor_->epoll_fd_, add_ret);
+}
+
+void TimerHandler::add_timer(const int& fd, const unsigned int& version_no, const std::chrono::steady_clock::time_point& active_time) {
+    std::lock_guard<std::mutex> lock(timer_mutex_);
+    this->time_record_queue_.push(TimeRecordPacket{fd, version_no, active_time});
+}
+
+EVENT_STATUS TimerHandler::handle_event(unsigned int state) {
+    // 错误信号处理
+    LOG_INFO("Client fd[%d] readding begain.", this->fd_);
+    if (this->reactor_ == nullptr) {
+        LOG_ERR("Client fd[%d] get reactor failed. The reactor is already released.", this->fd_);
+        return EVENT_STATUS::CLIENT_UNBIND_REACTOR_ERR;
+    }
+    if (!(state & EPOLLIN)) { // 不处理非读事件
+        LOG_ERR("Undefined epoll timer behavior. fd[%d].", this->fd_);
+        return EVENT_STATUS::EPOLL_UNDEFINE_TRIG;
+    }
+
+    // 处理定时器事件
+    LOG_INFO("[%s] Reactor[%d] timer trigger handler called.", __func__, this->reactor_->epoll_fd_);
+    uint64_t trig_times;
+    auto ret = read(this->fd_, &trig_times, sizeof(uint64_t));
+    if (ret == -1) {
+        LOG_ERR("[%s] Reactor[%d] read timerfd err. errorno %d.", __func__, this->reactor_->epoll_fd_, errno);
+        exit(EXIT_FAILURE);
+    }
+
+    // 批量取出已经过时的时间事件，这么处理是为了可以少反复加锁，在Reactor也可以只加锁一次后批量处理
+    std::vector<std::pair<int, unsigned int>> expired_conns;
+    {
+        std::lock_guard<std::mutex> lock(timer_mutex_);
+        auto now_time = std::chrono::steady_clock::now();
+        if (this->time_record_queue_.empty() || now_time < this->time_record_queue_.top().last_active_time) {
+            return EVENT_STATUS::OK;
+        }
+        while (!this->time_record_queue_.empty() && now_time > this->time_record_queue_.top().last_active_time) {
+            expired_conns.emplace_back(this->time_record_queue_.top().fd, this->time_record_queue_.top().version_no);
+            this->time_record_queue_.pop();
+        }
+    }
+    this->reactor_->timer_reset_batch_conns(expired_conns);
     return EVENT_STATUS::OK;
 }

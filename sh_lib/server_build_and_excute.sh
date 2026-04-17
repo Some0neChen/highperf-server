@@ -28,7 +28,7 @@ while getopts "st" opt; do
 done
 
 # 执行编译
-mkdir -p build && cd build
+mkdir -p ../build && cd ../build
 rm -rf *
 cmake $CMAKE_ARGS ..
 make -j

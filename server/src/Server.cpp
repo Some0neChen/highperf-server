@@ -14,7 +14,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include "Logger.h"
-#include "RequestBuffer.h"
 #include "ServerPub.h"
 #include "ThreadPool.h"
 
