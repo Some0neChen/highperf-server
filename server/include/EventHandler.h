@@ -71,7 +71,7 @@ struct TimeRecordPacket
 struct TimeRecordPacketComparator
 {
     bool operator()(const TimeRecordPacket& lhs, const TimeRecordPacket& rhs) const {
-        return lhs.last_active_time > lhs.last_active_time;
+        return lhs.last_active_time > rhs.last_active_time;
     }
 };
 
@@ -85,4 +85,5 @@ public:
     TimerHandler(Reactor*);
     EVENT_STATUS handle_event(unsigned int state) override;
     void add_timer(const int& fd, const unsigned int& version_no, const std::chrono::steady_clock::time_point& active_time);
+    int get_timer_fd() const;
 };

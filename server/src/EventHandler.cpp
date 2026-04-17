@@ -179,14 +179,15 @@ TimerHandler::TimerHandler(Reactor* reactor)
         exit(EXIT_FAILURE);
     }
     LOG_INFO("[%s]Reactor[%d] create and set timerfd[%d] successfully.", __func__, reactor_->epoll_fd_, this->fd_);
-    std::shared_ptr<EventHandler> timer_handler(this);
-    auto add_ret = reactor_->add_connection(this->fd_, EPOLLIN | EPOLLET, timer_handler);
-    LOG_INFO("[%s]Reactor[%d] add timer connection return %d.", __func__, reactor_->epoll_fd_, add_ret);
 }
 
 void TimerHandler::add_timer(const int& fd, const unsigned int& version_no, const std::chrono::steady_clock::time_point& active_time) {
     std::lock_guard<std::mutex> lock(timer_mutex_);
     this->time_record_queue_.push(TimeRecordPacket{fd, version_no, active_time});
+}
+
+int TimerHandler::get_timer_fd() const {
+        return this->fd_;
 }
 
 EVENT_STATUS TimerHandler::handle_event(unsigned int state) {

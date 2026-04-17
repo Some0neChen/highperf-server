@@ -19,7 +19,7 @@ class LogFile {
     int file_fd;
     constexpr static unsigned int FILE_MAX_SIZE = 10 * 1024 * 1024;
     unsigned int file_size;
-    unsigned int wirte_count_; // 记录写入的数据数量，每100次检查文件是否还存在
+    unsigned int write_count_; // 记录写入的数据数量，每100次检查文件是否还存在
 
     bool is_file_exist()
     {
@@ -52,7 +52,7 @@ class LogFile {
         bool need_roll = false;
         need_roll |= (file_size + log_str.size() >= FILE_MAX_SIZE);
         need_roll |= (current_date != getTime(TIME_TYPE::YMD));
-        need_roll |= (++this->wirte_count_ %= 100) == 0 && !is_file_exist();
+        need_roll |= ((++this->write_count_ %= 100) == 0 && !is_file_exist());
         if (!need_roll) {
             return;
         }
@@ -78,7 +78,8 @@ public:
             roll_if_need(log_str);
             total_written = write(file_fd, log_str.c_str(), log_str.size());
             if (total_written == -1) {
-                std::cerr << "Failed to write log: " << current_file_path << strerror(errno) << std::endl;
+                std::cerr << "Failed to write log: " << current_file_path
+                    << " entry dropped: "<< strerror(errno) << std::endl;
                 this->reset_file_fd();
                 return;
             }

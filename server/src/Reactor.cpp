@@ -58,7 +58,11 @@ Reactor::Reactor(std::shared_ptr<ThreadPool<std::function<EVENT_STATUS()>>>& thr
     LOG_INFO("Reactor[%d] initialization. Connection pool size %u.", epoll_fd_, conn_size_);
 
     // 挂接定时器，用于定时检测是否有长时间不活跃的客户端并定时清除
+    // TimerHandler的构造函数会进行timerfd的创建和设置
     this->timer_handler_ = std::make_shared<TimerHandler>(this);
+    auto add_ret = this->add_connection(this->timer_handler_->get_timer_fd(),
+        EPOLLIN | EPOLLET, this->timer_handler_);
+    LOG_INFO("[%s]Reactor[%d] add timer connection return %d.", __func__, this->epoll_fd_, add_ret);
 
     connections_.reserve(conn_size_);
     reactor_running_state_.store(true);
@@ -78,6 +82,9 @@ void Reactor::reset_connection(const int& fd) {
     this->connections_.erase(fd); 
 }
 
+// 批量重置连接
+// 主要用于定时器批量检测到过期连接时进行批量重置，减少加锁的次数
+// param：expired_conns 过期连接列表，包含连接fd和对应的version_no，如果version_no说明是已被刷新的事件，不进行处理
 void Reactor::timer_reset_batch_conns(const std::vector<std::pair<int, unsigned int>>& expired_conns) {
     std::vector<int> actual_expired_conns;
     {
