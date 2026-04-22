@@ -70,6 +70,9 @@ public:
     }
 
     void update_read_pos(const BUF_SIZE& read_len) {
+        if (read_pos_ + read_len > write_pos_) {
+            LOG_ERR("Update_read_pos err! read_len[%d], read_pos_[%d], write_pos_[%d]", read_len, read_pos_, write_pos_);
+        }
         read_pos_ += read_len;
         pos_reset();
         shrink_buffer();
@@ -78,7 +81,6 @@ private:
     std::vector<T> buffer_;
     BUF_SIZE write_pos_;
     BUF_SIZE read_pos_;
-
     RequestBuffer(const RequestBuffer&) = delete;
     RequestBuffer(RequestBuffer&&) = delete;
     RequestBuffer& operator=(const RequestBuffer&) = delete;

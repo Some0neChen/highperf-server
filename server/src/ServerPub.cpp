@@ -13,7 +13,6 @@
 #include <memory>
 #include <vector>
 #include "Reactor.h"
-#include "RequestBuffer.h"
 
 void http_parse() {
     // TODO
@@ -88,28 +87,46 @@ std::shared_ptr<Reactor> tcp_server_main_reactor_register(const int& socket_fd,
     return mainReacotr;
 }
 
-EVENT_STATUS task_handle(std::shared_ptr<TaskPacket> task)
+EVENT_STATUS ClientHandler::task_handle(std::shared_ptr<TaskPacket> task)
 {
-    task->buffer->push_back('\0'); // 模拟字符串结束符，后续改装http解析器时可以去掉
-    LOG_INFO("Client fd[%d] handle msg[%s] beginning", task->fd, task->buffer->data());
-    http_parse(); // 假装有http解析器
-    std::string reply("Recive OK. Msg: ");
-    reply.append(task->buffer->data());
-    int ret = write(task->fd, reply.data(), reply.size());
-    if (ret <= 0) {
-        LOG_ERR("Client fd[%d] reply err. errorno[%d].", task->fd, errno);
-        return  EVENT_STATUS::CLIENT_SEND_ERR;
-    }
-    LOG_INFO("Client fd[%d] reply over. Expect replied len %d. Actually replied len %d.",
-        task->fd, reply.size(), ret);
-    return EVENT_STATUS::OK;
-}
+    LOG_INFO("[%s]task_handle fd[%d] begin", __func__, task->fd);
 
-// 暂时模拟提取请求信息，后续改装http解析器
-std::shared_ptr<std::vector<char>> request_msg_parse(RequestBuffer<char> &buffer)
-{
-    auto msg = std::make_shared<std::vector<char>>(
-        buffer.get_data() + buffer.get_read_pos(), buffer.get_data() + buffer.get_write_pos());
-    buffer.update_read_pos(msg->size());
-    return msg;
+    LOG_INFO("-----------------------------------------------------------"
+             "ClientHandler[%d] parse http requst info:\r\n"
+             "Method: %s\r\n"
+             "URL: %s\r\n"
+             "Version: %s\r\n"
+             "Keep-Alive: %s\r\n"
+             "Content-Length: %u\r\n",
+             task->fd, task->request_header_->method.c_str(),
+             task->request_header_->url.c_str(),
+             task->request_header_->version.c_str(),
+             task->request_header_->keep_alive ? "true" : "false",
+             task->request_header_->content_length);
+    LOG_INFO("Header:");
+    for (auto it = task->request_header_->headers.begin(); it != task->request_header_->headers.end(); ++it) {
+        LOG_INFO("%s: %s", it->first.c_str(), it->second.c_str());
+    }
+    LOG_INFO("Body: \r\n"
+             "%s\r\n"
+             "-----------------------------------------------------------", task->request_header_->body.c_str());
+    
+    // 构造404报文
+    std::string body = "<html><body><h1>404 Not Found</h1><p>The requested resource was not found on this server.</p></body></html>";
+    // 注意：每一行都要以 \r\n 结尾，Header 和 Body 之间有两个 \r\n
+    std::string response = "HTTP/1.1 404 Not Found\r\n";
+    response += "Content-Type: text/html; charset=utf-8\r\n";
+    response += "Content-Length: " + std::to_string(body.length()) + "\r\n";
+    response += "Connection: close\r\n";  // 告诉客户端发完就断开，适合简单测试
+    response += "\r\n";                   // 关键的空行
+    response += body;                     // 放入 Body
+
+    // 3. 发送数据
+    send(task->fd, response.c_str(), response.length(), MSG_NOSIGNAL);
+    // 4. 非Keep-Alive以及非HTTP/1.1用完即关
+    if (!task->request_header_->keep_alive || task->request_header_->version != "HTTP/1.1") {
+        this->reactor_.lock()->reset_connection(task->fd);
+    }
+    
+    return EVENT_STATUS::OK;
 }

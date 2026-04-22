@@ -34,6 +34,12 @@ void Reactor::reactor_running_thread() {
     }
 }
 
+// 判断fd所挂接的ClientHandler是否还在，防止读空内存
+bool Reactor::is_client_exist(const int& fd)
+{
+    return this->connections_.find(fd) != this->connections_.end() && this->connections_[fd] != nullptr;
+}
+
 
 Reactor::Reactor(std::shared_ptr<ThreadPool<std::function<EVENT_STATUS()>>>& thread_pool) :
     thread_pool_(thread_pool) {
@@ -90,6 +96,10 @@ void Reactor::timer_reset_batch_conns(const std::vector<std::pair<int, unsigned 
     {
         std::lock_guard<std::mutex> lock(this->conn_mutex_);
         for (auto conn : expired_conns) {
+            // 有可能连接已经断开了，但是对应的fd事件还保存在timer的堆里，这里要做预防，防止踩空
+            if (!this->is_client_exist(conn.first)) {
+                continue;
+            }
             if (dynamic_cast<ClientHandler*>(this->connections_[conn.first].get())->get_version_no() != conn.second) {
                 continue;
             }

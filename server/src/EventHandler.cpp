@@ -1,4 +1,5 @@
 #include "EventHandler.h"
+#include "HttpModule.h"
 #include "Logger.h"
 #include "ServerPub.h"
 #include <arpa/inet.h>
@@ -67,14 +68,16 @@ EVENT_STATUS ListenHandler::handle_event(unsigned int state)
     return EVENT_STATUS::OK;;
 }
 
-ClientHandler::ClientHandler(const int& fd,
-        std::shared_ptr<Reactor>& reactor) :
-            EventHandler(fd), reactor_(reactor)
+ClientHandler::ClientHandler(const int& fd, std::shared_ptr<Reactor>& reactor)
+    : EventHandler(fd),
+      reactor_(reactor),
+      buffer_(std::make_shared<RequestBuffer<char>>()),
+      request_packet_(this->buffer_),
+      version_no(0)
 {
     if (fcntl(this->fd_, F_SETFL, O_NONBLOCK) < 0) {
         LOG_ERR("Client fd[%d] set O_NONBLOCK mode err.", this->fd_);
     }
-    this->version_no.store(0);
     this->update_expire_time();
 }
 
@@ -98,8 +101,8 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
     while (true) {
         // 采用readv分散读的方式，先将数据读入缓冲区剩余空间，如果数据长度超过剩余空间，则将溢出部分读入extra_buf中
         iovec read_vec[2];
-        read_vec[0].iov_base = this->buffer_.get_data() + this->buffer_.get_write_pos();
-        read_vec[0].iov_len = this->buffer_.writable_size();
+        read_vec[0].iov_base = this->buffer_->get_data() + this->buffer_->get_write_pos();
+        read_vec[0].iov_len = this->buffer_->writable_size();
         char extra_buf[65536];
         read_vec[1].iov_base = extra_buf;
         read_vec[1].iov_len = sizeof(extra_buf);
@@ -121,22 +124,28 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
             }
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 LOG_INFO("Client fd[%d] readding over.", this->fd_);
-                break;;
+                break;
             }
             LOG_INFO("Client fd[%d] occur readding failed. errorno[%d]", this->fd_, errno);
             return EVENT_STATUS::CLIENT_READ_ERR;
         }
 
         // 更新缓冲区写入位置
-        buffer_.update_write_pos(len, extra_buf);
+        buffer_->update_write_pos(len, extra_buf);
         LOG_INFO("Epoll[%d] Client fd[%d] receive msg success, len %u", reactor_ptr->get_epoll_fd(), this->fd_, len);
-
-        // 将任务包推入线程池
-        std::shared_ptr<TaskPacket> packet = std::make_shared<TaskPacket>(
-            request_msg_parse(this->buffer_), this->fd_, len);
-        reactor_ptr->thread_pool_->add_task([packet](){
-            LOG_INFO("fd[%d] push task into queue. buf len %d", packet->fd, packet->len);
-            return task_handle(packet);
+    }
+    // 测试用，打印报文长啥样：
+    std::string http(this->buffer_->get_data() + this->buffer_->get_read_pos(), this->buffer_->readable_size());
+    LOG_INFO("--------------------------------\n%s\n--------------------------------", http.c_str());
+    //--
+    while (HttpFsmManager::get_fsm().fsm_excute(this->request_packet_.last_state_,
+            this->request_packet_) == ParseResult::COMPLETE) {
+        // 构造任务包
+        auto request_header = this->request_packet_.pop_content();
+        std::shared_ptr<TaskPacket> packet = std::make_shared<TaskPacket>(request_header, this->fd_);
+        reactor_ptr->thread_pool_->add_task([packet, this](){
+            LOG_INFO("fd[%d] push task into http thread queue.", packet->fd);
+            return this->task_handle(packet);
         });
     }
     this->update_expire_time();

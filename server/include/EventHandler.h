@@ -8,6 +8,7 @@
 #include <vector>
 #include "ServerPub.h"
 #include "RequestBuffer.h"
+#include "HttpModule.h"
 
 class Reactor;
 class EventHandler {
@@ -36,8 +37,11 @@ private:
     // 客户端存放的是当前所受管理的Reactor
     // 因Reactor的Connection表中存放的EventHandler是ClientHandler，所以此处为避免循环引用，使用弱指针
     std::weak_ptr<Reactor> reactor_;
-    RequestBuffer<char> buffer_; // 客户端请求读写缓冲区
+    std::shared_ptr<RequestBuffer<char>> buffer_; // 客户端请求读写缓冲区
     std::atomic<unsigned int> version_no;
+    RequestHandlerPacket request_packet_; // http报文请求包
+
+    EVENT_STATUS task_handle(std::shared_ptr<TaskPacket>);
 };
 
 class ListenHandler : public EventHandler {
@@ -52,11 +56,10 @@ public:
 
 // 客户端请求任务包
 struct TaskPacket {
-    std::shared_ptr<std::vector<char>> buffer;
+    std::shared_ptr<RequestContent> request_header_;
     int fd;
-    size_t len;
-    TaskPacket(const std::shared_ptr<std::vector<char>>& buffer, const int& fd, const size_t& len) : 
-        buffer(buffer), fd(fd), len(len) {}
+    TaskPacket(const std::shared_ptr<RequestContent>& header, const int& fd) : 
+        request_header_(header), fd(fd) {}
 };
 
 // 客户端连接对应处理任务时刻时间包，用来在reactor中记录每个链接的对应处理任务时的时间事件

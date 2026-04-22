@@ -16,6 +16,7 @@
 #include "Logger.h"
 #include "ServerPub.h"
 #include "ThreadPool.h"
+#include "HttpModule.h"
 
 using namespace std;
 
@@ -48,6 +49,9 @@ int main(int argc, char* argv[]) {
 
     // TCP层主副Reactor初始化及挂接
     auto ret = tcp_server_main_reactor_register(socket_fd, threadPool);
+
+    // Http解析状态机挂接
+    init_http_parse_fsm();
 
     // 维持主线程不挂
     while (server_running.load()) {

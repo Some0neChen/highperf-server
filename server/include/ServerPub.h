@@ -22,7 +22,7 @@ enum SPECS_VALUE {
     FD_READ_SIZE = 2048,
     STANDARD_REQUEST_BUF_SIZE = 4096,   // 客户端TCP输入的标准请求缓冲区大小: 4KB
     HUG_MSG_BUFFER_SIZE = 64 * 1024,    // 读取客户端TCP输入的超大缓冲区临界值: 64KB
-    WEB_SERVER_TIMER_INTERVAL = 12,      // webserver定时器唤醒间隔，秒级
+    WEB_SERVER_TIMER_INTERVAL = 20 * 60,      // webserver定时器唤醒间隔，秒级
 };
 
 struct TaskPacket;
@@ -40,4 +40,3 @@ EVENT_STATUS task_handle(std::shared_ptr<TaskPacket>); // 任务处理函数
 int init_socket_fd(int argc, char* argv[]);
 std::shared_ptr<Reactor> tcp_server_main_reactor_register(const int&,
     std::shared_ptr<ThreadPool<std::function<EVENT_STATUS()>>>&);
-std::shared_ptr<std::vector<char>> request_msg_parse(RequestBuffer<char>&);

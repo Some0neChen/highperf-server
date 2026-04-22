@@ -36,6 +36,7 @@ class Reactor
     constexpr static size_t MAX_EVENTS = 1024;
 
     void reactor_running_thread();
+    bool is_client_exist(const int&);
 
     // 将事件处理类设置为友元，以便其访问对应Reactor内注册的线程池
     friend class ClientHandler;
