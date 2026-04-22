@@ -135,11 +135,10 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
         LOG_INFO("Epoll[%d] Client fd[%d] receive msg success, len %u", reactor_ptr->get_epoll_fd(), this->fd_, len);
     }
     // 测试用，打印报文长啥样：
-    std::string http(this->buffer_->get_data() + this->buffer_->get_read_pos(), this->buffer_->readable_size());
-    LOG_INFO("--------------------------------\n%s\n--------------------------------", http.c_str());
+    // std::string http(this->buffer_->get_data() + this->buffer_->get_read_pos(), this->buffer_->readable_size());
+    // LOG_INFO("--------------------------------\n%s\n--------------------------------", http.c_str());
     //--
-    while (HttpFsmManager::get_fsm().fsm_excute(this->request_packet_.last_state_,
-            this->request_packet_) == ParseResult::COMPLETE) {
+    while (HttpFsmManager::get_fsm().fsm_excute( this->request_packet_) == ParseResult::COMPLETE) {
         // 构造任务包
         auto request_header = this->request_packet_.pop_content();
         std::shared_ptr<TaskPacket> packet = std::make_shared<TaskPacket>(request_header, this->fd_);

@@ -95,7 +95,7 @@ struct RequestContent {
     std::string version;
     bool keep_alive;
     size_t content_length;
-    std::pmr::unordered_map<std::string, std::string> headers;
+    std::unordered_map<std::string, std::string> headers;
     std::string body;
 };
 
@@ -103,7 +103,7 @@ class RequestHandlerPacket {
 public:
     std::shared_ptr<RequestBuffer<char>> data_buffer_;
     std::shared_ptr<RequestContent> content_buffer_;
-    FSMState last_state_;
+    FSMState current_state_;
 
     RequestHandlerPacket(std::shared_ptr<RequestBuffer<char>>);
     RequestHandlerPacket(RequestHandlerPacket&&) = default;
@@ -140,13 +140,23 @@ public:
         state_handlers_.push_back(hander);
         return FSMResultCode::OK;
     }
-    
-    ParseResult fsm_excute(const FSMState& state, RequestHandlerPacket& packet) {
-        if (state > FSMState::END) {
+
+    ParseResult fsm_excute(RequestHandlerPacket& packet) {
+        LOG_INFO("Http Parse FSM Excute.");
+        auto paser_res = ParseResult::INCOMPLETE;
+        while (packet.current_state_ < FSMState::END) {
+            paser_res = state_handlers_[static_cast<decltype(state_handlers_.size())>(packet.current_state_)](packet);
+            if (paser_res != ParseResult::COMPLETE) {
+                return paser_res;
+            }
+        }
+        if (packet.current_state_ > FSMState::END) {
             LOG_ERR("Undefined FSM state [%d] excute. current size [%zu]",
-                    static_cast<decltype(state_handlers_.size())>(state), state_handlers_.size());
+                static_cast<decltype(state_handlers_.size())>(packet.current_state_), state_handlers_.size());
             return ParseResult::ERROR;
         }
-        return state_handlers_[static_cast<decltype(state_handlers_.size())>(state)](packet);
+        packet.current_state_ = FSMState::START;
+        LOG_INFO("Http Parse FSM Over.");
+        return ParseResult::COMPLETE;
     }
 };

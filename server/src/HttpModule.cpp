@@ -7,7 +7,7 @@
 
 // 结构体成员函数实现
 RequestHandlerPacket::RequestHandlerPacket(std::shared_ptr<RequestBuffer<char>> buffer)
-    : data_buffer_(buffer), content_buffer_(std::make_shared<RequestContent>()), last_state_(FSMState::START) {};
+    : data_buffer_(buffer), content_buffer_(std::make_shared<RequestContent>()), current_state_(FSMState::START) {};
 
 std::shared_ptr<RequestContent> RequestHandlerPacket::pop_content() {
     auto request_header = this->content_buffer_;
@@ -105,15 +105,13 @@ ParseResult get_content_upto_colon_sp(RequestHandlerPacket& request, size_t& pos
 // 报文解析状态机起始
 ParseResult http_parse_request_start(RequestHandlerPacket& request)
 {
-    LOG_INFO("Http Parse FSM Excute.");
-    request.last_state_ = FSMState::START;
-    return HttpFsmManager::get_fsm().fsm_excute(FSMState::METHOD, request);
+    request.current_state_ = FSMState::METHOD;
+    return ParseResult::COMPLETE;
 }
 
 // 解析请求方法
 ParseResult http_parse_request_method(RequestHandlerPacket& request)
 {
-    request.last_state_ = FSMState::METHOD;
     size_t pos = request.data_buffer_->get_read_pos();
     if (get_content_upto_space(request, pos) != ParseResult::COMPLETE) {
         return ParseResult::INCOMPLETE;
@@ -121,13 +119,13 @@ ParseResult http_parse_request_method(RequestHandlerPacket& request)
     request.content_buffer_->method = std::string(request.data_buffer_->get_data() + request.data_buffer_->get_read_pos(),
         pos - request.data_buffer_->get_read_pos());
     update_read_pos(request, pos, HttpConst::SP.size());
-    return HttpFsmManager::get_fsm().fsm_excute(FSMState::PATH, request);
+    request.current_state_ = FSMState::PATH;
+    return ParseResult::COMPLETE;
 }
 
 // 解析请求路径
 ParseResult http_parse_request_url(RequestHandlerPacket& request)
 {
-    request.last_state_ = FSMState::PATH;
     size_t pos = request.data_buffer_->get_read_pos();
     if (get_content_upto_space(request, pos) != ParseResult::COMPLETE) {
         return ParseResult::INCOMPLETE;
@@ -135,13 +133,13 @@ ParseResult http_parse_request_url(RequestHandlerPacket& request)
     request.content_buffer_->url = std::string(request.data_buffer_->get_data() + request.data_buffer_->get_read_pos(),
         pos - request.data_buffer_->get_read_pos());
     update_read_pos(request, pos, HttpConst::SP.size());
-    return HttpFsmManager::get_fsm().fsm_excute(FSMState::VERSION, request);
+    request.current_state_ = FSMState::VERSION;
+    return ParseResult::COMPLETE;
 }
 
 // 解析请求版本
 ParseResult http_parse_request_version(RequestHandlerPacket& request)
 {
-    request.last_state_ = FSMState::VERSION;
     size_t pos = request.data_buffer_->get_read_pos();
     if (get_content_upto_crlf(request, pos) != ParseResult::COMPLETE) {
         return ParseResult::INCOMPLETE;
@@ -149,17 +147,18 @@ ParseResult http_parse_request_version(RequestHandlerPacket& request)
     request.content_buffer_->version = std::string(request.data_buffer_->get_data() + request.data_buffer_->get_read_pos(),
         pos - request.data_buffer_->get_read_pos());
     update_read_pos(request, pos, HttpConst::CRLF.size());
-    return HttpFsmManager::get_fsm().fsm_excute(FSMState::HEADER, request);
+    request.current_state_ = FSMState::HEADER;
+    return ParseResult::COMPLETE;
 }
 
 // 解析报文头键值对
 ParseResult http_parse_request_header(RequestHandlerPacket& request)
 {
-    request.last_state_ = FSMState::HEADER;
     // 如果在读报文头阶段开头就读到\r\n，那说明已经进入了\r\n\r\n的情况，转而去读取BODY
     if (request.data_buffer_->get_read_pos() + 1 < request.data_buffer_->get_write_pos()
         && match_2_bytes(request.data_buffer_->get_data() + request.data_buffer_->get_read_pos(), HttpTokens::kLineEnd)) {
-        return HttpFsmManager::get_fsm().fsm_excute(FSMState::BODY, request);
+        request.current_state_ = FSMState::BODY;
+        return ParseResult::COMPLETE;
     }
 
     // 定位到[: ]的起始索引
@@ -192,19 +191,19 @@ ParseResult http_parse_request_header(RequestHandlerPacket& request)
     }
     update_read_pos(request, crlf_pos, HttpConst::CRLF.size());
     // 继续走请求头状态机解析
-    return HttpFsmManager::get_fsm().fsm_excute(FSMState::HEADER, request);
+    return ParseResult::COMPLETE;
 }
 
 ParseResult http_parse_request_body(RequestHandlerPacket& request)
 {
-    request.last_state_ = FSMState::BODY;
     // 此处需要吃掉开头的\r\n, 当前在header的处理最后并没有处理额外的\r\n
     auto pos = request.data_buffer_->get_read_pos();
     update_read_pos(request, pos, HttpConst::CRLF.size());
 
     // content_length代表无body数据携带，此时说明该http报文已解析完毕
     if (request.content_buffer_->content_length == 0) {
-        return HttpFsmManager::get_fsm().fsm_excute(FSMState::END, request);
+        request.current_state_ = FSMState::END;
+        return ParseResult::COMPLETE;
     }
 
     // 当前缓冲区剩余大小小于content_length长度，说明正在读半包
@@ -217,14 +216,7 @@ ParseResult http_parse_request_body(RequestHandlerPacket& request)
         request.content_buffer_->content_length);
     auto next_start_pos = request.data_buffer_->get_read_pos() + request.content_buffer_->content_length;
     update_read_pos(request, next_start_pos, 0);
-    return HttpFsmManager::get_fsm().fsm_excute(FSMState::END, request);
-}
-
-// 报文解析状态机结束
-ParseResult http_parse_request_end(RequestHandlerPacket& request)
-{
-    LOG_INFO("Http Parse FSM Over.");
-    request.last_state_ = FSMState::START;
+    request.current_state_ = FSMState::END;
     return ParseResult::COMPLETE;
 }
 
@@ -237,6 +229,5 @@ void init_http_parse_fsm()
     HttpFsmManager::get_fsm().register_fsm_handler(FSMState::VERSION, &http_parse_request_version);
     HttpFsmManager::get_fsm().register_fsm_handler(FSMState::HEADER, &http_parse_request_header);
     HttpFsmManager::get_fsm().register_fsm_handler(FSMState::BODY, &http_parse_request_body);
-    HttpFsmManager::get_fsm().register_fsm_handler(FSMState::END, &http_parse_request_end);
     return;
 }
