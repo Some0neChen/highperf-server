@@ -20,9 +20,10 @@ enum EVENT_STATUS {
 
 enum SPECS_VALUE {
     FD_READ_SIZE = 2048,
-    STANDARD_REQUEST_BUF_SIZE = 4096,   // 客户端TCP输入的标准请求缓冲区大小: 4KB
-    HUG_MSG_BUFFER_SIZE = 64 * 1024,    // 读取客户端TCP输入的超大缓冲区临界值: 64KB
-    WEB_SERVER_TIMER_INTERVAL = 20 * 60,      // webserver定时器唤醒间隔，秒级
+    STANDARD_REQUEST_BUF_SIZE = 4096,       // 客户端TCP输入的标准请求缓冲区大小: 4KB
+    HUG_MSG_BUFFER_SIZE = 64 * 1024,        // 读取客户端TCP输入的超大缓冲区临界值: 64KB
+    WEB_SERVER_TIMER_INTERVAL = 20 * 60,    // webserver定时器唤醒间隔，秒级
+    HTTP_RESPOND_MSG_SIZE = 1024,           // Http响应报文预留长度，防止多次扩容
 };
 
 struct TaskPacket;

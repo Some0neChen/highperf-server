@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Logger.h"
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -12,6 +11,7 @@
 
 // 状态机挂接函数
 void init_http_parse_fsm();
+void HttpRouteAttach();
 
 namespace HttpConst {
     // 分隔符
@@ -51,7 +51,26 @@ namespace HttpConst {
     constexpr std::string_view CONTENT_TYPE_TEXT = "text/plain";
     constexpr std::string_view CONTENT_TYPE_JSON = "application/json";
     constexpr std::string_view CONTENT_TYPE_HTML = "text/html";
+
+    // 响应信息
+    constexpr std::string_view MSG_200  = "OK";
+    constexpr std::string_view MSG_400  = "Bad Request";
+    constexpr std::string_view MSG_404  = "Not Found";
+    constexpr std::string_view MSG_500  = "Internal Server Error";
+    constexpr std::string_view MSG_PONG = "pong";
 }
+
+namespace HttpRespond {
+    // 未找到
+    constexpr std::string_view NOT_FOUND = "HTTP/1.1 Not Found";
+    // Parse Err
+    constexpr std::string_view PARSE_FAULT = "PARSE_FAULT";
+    // GET Ping
+    constexpr std::string_view GET_PING = "GET /ping";
+    // Post Echo
+    constexpr std::string_view POST_PING = "POST /echo";
+}
+
 
 namespace HttpTokens {
     constexpr uint16_t kLineEnd     = 0x0A0D;           // "\r\n"
@@ -83,9 +102,11 @@ enum class FSMState {
     END
 };
 
-enum class FSMResultCode {
+enum class HttpHandleCode {
     OK = 0,
+    ERR,
     REGISER_HANDLER_ERR,
+    RESPOND_TYPE_REPEATED,
     END
 };
 
@@ -112,9 +133,11 @@ public:
     RequestHandlerPacket& operator=(const RequestHandlerPacket&) = default;
     ~RequestHandlerPacket() = default;
 
+    // 将解析完的http数据返回，并分配新的堆区用来存取下一个http数据
     std::shared_ptr<RequestContent> pop_content();
 };
 
+// Http解析状态机
 class HttpFsmManager {
     using StateHandler = std::function<ParseResult(RequestHandlerPacket&)>;
     std::vector<StateHandler> state_handlers_;
@@ -131,32 +154,75 @@ public:
         return fsm;
     }
 
-    FSMResultCode register_fsm_handler(const FSMState& state, const StateHandler& hander) {
-        if ((state_handlers_.size()) != static_cast<decltype(state_handlers_.size())>(state)) {
-            LOG_ERR("FSM state [%d] register handler error. current size [%zu]",
-                    static_cast<decltype(state_handlers_.size())>(state), state_handlers_.size());
-            return FSMResultCode::REGISER_HANDLER_ERR;
-        }
-        state_handlers_.push_back(hander);
-        return FSMResultCode::OK;
+    // 根据状态和处理函数，注册新的状态机事件
+    HttpHandleCode register_fsm_handler(const FSMState&, const StateHandler&);
+    // 执行Http解析状态机
+    ParseResult fsm_excute(RequestHandlerPacket&);
+};
+
+class HttpSender;
+// 路由规则处理器，根据报文的method和url进行处理，获取对应的body，以及返回状态码
+class HttpRouter {
+    // 通过sender函数，传入RequestContent，获取对应的处理类HttpSender
+    std::unordered_map<std::string_view, std::shared_ptr<HttpSender>> router_;
+    HttpRouter() = default;
+    HttpRouter(const HttpRouter&) = delete;
+    HttpRouter(HttpRouter&&) = delete;
+    HttpRouter& operator=(const HttpRouter&) = delete;
+    HttpRouter& operator=(HttpRouter&&) = delete;
+    ~HttpRouter() = default;
+    std::shared_ptr<HttpSender> default_sender_;
+public:
+    static HttpRouter& get_router() {
+        static HttpRouter router;
+        return router;
     }
 
-    ParseResult fsm_excute(RequestHandlerPacket& packet) {
-        LOG_INFO("Http Parse FSM Excute.");
-        auto paser_res = ParseResult::INCOMPLETE;
-        while (packet.current_state_ < FSMState::END) {
-            paser_res = state_handlers_[static_cast<decltype(state_handlers_.size())>(packet.current_state_)](packet);
-            if (paser_res != ParseResult::COMPLETE) {
-                return paser_res;
-            }
-        }
-        if (packet.current_state_ > FSMState::END) {
-            LOG_ERR("Undefined FSM state [%d] excute. current size [%zu]",
-                static_cast<decltype(state_handlers_.size())>(packet.current_state_), state_handlers_.size());
-            return ParseResult::ERROR;
-        }
-        packet.current_state_ = FSMState::START;
-        LOG_INFO("Http Parse FSM Over.");
-        return ParseResult::COMPLETE;
-    }
+    HttpHandleCode regisetr_http_sender(const std::string_view&, std::shared_ptr<HttpSender>);
+    HttpHandleCode respond(std::shared_ptr<RequestContent>&, int);
+};
+
+// http回送报文构造器，基类为404情况
+class HttpSender {
+protected:
+    HttpSender(const HttpSender&) = delete;
+    HttpSender(HttpSender&&) = delete;
+    HttpSender& operator=(const HttpSender&) = delete;
+    HttpSender& operator=(HttpSender&&) = delete;
+public:
+    HttpSender() = default;
+    ~HttpSender() = default;
+    virtual HttpHandleCode constructMsg(std::string&, std::shared_ptr<RequestContent>&);
+    virtual HttpHandleCode sendMsg(std::shared_ptr<RequestContent>&, int);
+};
+
+// 对应为GET/ping情况
+class HttpPingSender : public HttpSender {
+public:
+    HttpPingSender() = default;
+    HttpHandleCode constructMsg(std::string&, std::shared_ptr<RequestContent>&) override;
+};
+
+// 对应为Post/echo情况
+class HttpEchoSender : public HttpSender {
+public:
+    HttpEchoSender() = default;
+    HttpHandleCode constructMsg(std::string&, std::shared_ptr<RequestContent>&) override;
+};
+
+// 对应为400报文错误无法解析的情况
+class HttpFaultSender : public HttpSender {
+public:
+    HttpFaultSender() = default;
+    HttpHandleCode constructMsg(std::string&, std::shared_ptr<RequestContent>&) override;
+};
+
+// GET方法在未精确命中的情况下的广义文件搜寻
+class HttpGETFileSender : public HttpSender {
+private:
+    static std::unordered_map<std::string, std::string> respond_type_map_;
+    std::string getRespondType(std::shared_ptr<RequestContent>&) const;
+public:
+    HttpGETFileSender() = default;
+    HttpHandleCode constructMsg(std::string&, std::shared_ptr<RequestContent>&) override;
 };

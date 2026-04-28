@@ -50,8 +50,9 @@ int main(int argc, char* argv[]) {
     // TCP层主副Reactor初始化及挂接
     auto ret = tcp_server_main_reactor_register(socket_fd, threadPool);
 
-    // Http解析状态机挂接
+    // Http解析状态机及响应报文构造器挂接
     init_http_parse_fsm();
+    HttpRouteAttach();
 
     // 维持主线程不挂
     while (server_running.load()) {

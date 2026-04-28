@@ -81,6 +81,7 @@ private:
     std::vector<T> buffer_;
     BUF_SIZE write_pos_;
     BUF_SIZE read_pos_;
+
     RequestBuffer(const RequestBuffer&) = delete;
     RequestBuffer(RequestBuffer&&) = delete;
     RequestBuffer& operator=(const RequestBuffer&) = delete;

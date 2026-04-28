@@ -119,11 +119,14 @@ Reactor::~Reactor() { // 担心不加锁有问题
     if (reactor_thread_.joinable()) {
         reactor_thread_.join();
     }
+    // 防止删除元素过程中迭代器失效，先把fd都取出来再挨个删除
+    std::vector<int> release_conns;
+    release_conns.reserve(this->connections_.size());
     for (auto conn_ : connections_) {
-        if (conn_.second == nullptr) {
-            continue;
-        }
-        reset_connection(conn_.first);
+        release_conns.push_back(conn_.first);
+    }
+    for (auto conn : release_conns) {
+        this->reset_connection(conn);
     }
     close(this->epoll_fd_);
     close(this->wake_fd_);

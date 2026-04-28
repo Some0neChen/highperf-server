@@ -138,15 +138,26 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
     // std::string http(this->buffer_->get_data() + this->buffer_->get_read_pos(), this->buffer_->readable_size());
     // LOG_INFO("--------------------------------\n%s\n--------------------------------", http.c_str());
     //--
-    while (HttpFsmManager::get_fsm().fsm_excute( this->request_packet_) == ParseResult::COMPLETE) {
+    ParseResult parse_ret;
+    std::shared_ptr<TaskPacket> packet;
+    while ((parse_ret = HttpFsmManager::get_fsm().fsm_excute( this->request_packet_)) == ParseResult::COMPLETE) {
         // 构造任务包
         auto request_header = this->request_packet_.pop_content();
-        std::shared_ptr<TaskPacket> packet = std::make_shared<TaskPacket>(request_header, this->fd_);
-        reactor_ptr->thread_pool_->add_task([packet, this](){
-            LOG_INFO("fd[%d] push task into http thread queue.", packet->fd);
-            return this->task_handle(packet);
+        packet = std::make_shared<TaskPacket>(request_header, this->reactor_, this->fd_);
+        reactor_ptr->thread_pool_->add_task([packet](){
+            LOG_INFO("fd[%d] push task into http thread queue.", packet->fd_);
+            return task_handle(packet);
         });
     }
+    // 错包场景
+    if (parse_ret == ParseResult::ERROR) {
+        packet->request_header_->url.clear();
+        packet->request_header_->method = HttpRespond::PARSE_FAULT;
+        HttpRouter::get_router().respond(packet->request_header_, this->fd_);
+        this->reactor_.lock()->reset_connection(this->fd_);
+        return EVENT_STATUS::OK;
+    }
+    
     this->update_expire_time();
     return EVENT_STATUS::OK;
 }

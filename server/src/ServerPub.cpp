@@ -87,9 +87,9 @@ std::shared_ptr<Reactor> tcp_server_main_reactor_register(const int& socket_fd,
     return mainReacotr;
 }
 
-EVENT_STATUS ClientHandler::task_handle(std::shared_ptr<TaskPacket> task)
+EVENT_STATUS task_handle(std::shared_ptr<TaskPacket> task)
 {
-    LOG_INFO("[%s]task_handle fd[%d] begin", __func__, task->fd);
+    LOG_INFO("[%s]task_handle fd[%d] begin", __func__, task->fd_);
 
     LOG_INFO("-----------------------------------------------------------"
              "ClientHandler[%d] parse http requst info:\r\n"
@@ -98,7 +98,7 @@ EVENT_STATUS ClientHandler::task_handle(std::shared_ptr<TaskPacket> task)
              "Version: %s\r\n"
              "Keep-Alive: %s\r\n"
              "Content-Length: %u\r\n",
-             task->fd, task->request_header_->method.c_str(),
+             task->fd_, task->request_header_->method.c_str(),
              task->request_header_->url.c_str(),
              task->request_header_->version.c_str(),
              task->request_header_->keep_alive ? "true" : "false",
@@ -111,21 +111,13 @@ EVENT_STATUS ClientHandler::task_handle(std::shared_ptr<TaskPacket> task)
              "%s\r\n"
              "-----------------------------------------------------------", task->request_header_->body.c_str());
     
-    // 构造404报文
-    std::string body = "<html><body><h1>404 Not Found</h1><p>The requested resource was not found on this server.</p></body></html>";
-    // 注意：每一行都要以 \r\n 结尾，Header 和 Body 之间有两个 \r\n
-    std::string response = "HTTP/1.1 404 Not Found\r\n";
-    response += "Content-Type: text/html; charset=utf-8\r\n";
-    response += "Content-Length: " + std::to_string(body.length()) + "\r\n";
-    response += "Connection: close\r\n";  // 告诉客户端发完就断开，适合简单测试
-    response += "\r\n";                   // 关键的空行
-    response += body;                     // 放入 Body
-
-    // 3. 发送数据
-    send(task->fd, response.c_str(), response.length(), MSG_NOSIGNAL);
-    // 4. 非Keep-Alive以及非HTTP/1.1用完即关
-    if (!task->request_header_->keep_alive || task->request_header_->version != "HTTP/1.1") {
-        this->reactor_.lock()->reset_connection(task->fd);
+    
+    // 发送响应报文
+    HttpRouter::get_router().respond(task->request_header_, task->fd_);
+    
+    // 非Keep-Alive用完即关
+    if (!task->request_header_->keep_alive) {
+        task->reactor_.lock()->reset_connection(task->fd_);
     }
     
     return EVENT_STATUS::OK;

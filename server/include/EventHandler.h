@@ -40,8 +40,6 @@ private:
     std::shared_ptr<RequestBuffer<char>> buffer_; // 客户端请求读写缓冲区
     std::atomic<unsigned int> version_no;
     RequestHandlerPacket request_packet_; // http报文请求包
-
-    EVENT_STATUS task_handle(std::shared_ptr<TaskPacket>);
 };
 
 class ListenHandler : public EventHandler {
@@ -57,9 +55,11 @@ public:
 // 客户端请求任务包
 struct TaskPacket {
     std::shared_ptr<RequestContent> request_header_;
-    int fd;
-    TaskPacket(const std::shared_ptr<RequestContent>& header, const int& fd) : 
-        request_header_(header), fd(fd) {}
+    std::weak_ptr<Reactor> reactor_;
+    int fd_;
+    
+    TaskPacket(const std::shared_ptr<RequestContent>& header, std::weak_ptr<Reactor>& reactor, const int& fd) : 
+        request_header_(header), fd_(fd), reactor_(reactor) {}
 };
 
 // 客户端连接对应处理任务时刻时间包，用来在reactor中记录每个链接的对应处理任务时的时间事件
