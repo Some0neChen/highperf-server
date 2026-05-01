@@ -6,11 +6,15 @@
 #include <cstdint>
 #include <cstring>
 #include <exception>
+#include <fcntl.h>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/uio.h>
 #include <unordered_map>
+#include <sys/mman.h>
 
 // 结构体成员函数实现
 
@@ -280,15 +284,22 @@ void init_http_parse_fsm()
 // HttpResponse报文构造API部分
 
 // 根据路由类型返回对应的发送器，找不到则返回404
-HttpHandleCode HttpRouter::respond(std::shared_ptr<RequestContent>& req, int fd)
+HttpHandleCode HttpRouter::respond(std::shared_ptr<RequestContent>& req, const int& fd)
 {
     std::string route_key;
     route_key.append(req->method).append(HttpConst::SP).append(req->url);
-    if (this->router_.find(route_key) == this->router_.end()) {
-        route_key = HttpRespond::NOT_FOUND;
+    if (this->router_.find(route_key) != this->router_.end()) {
         return this->router_[route_key]->sendMsg(req, fd);
     }
-    return this->router_[route_key]->sendMsg(req, fd);
+    if (this->router_.find(req->method) != this->router_.end()) {
+        return this->router_[req->method]->sendMsg(req, fd);
+    }
+    return this->respondNotFound(req, fd);
+}
+
+HttpHandleCode HttpRouter::respondNotFound(std::shared_ptr<RequestContent>& req, const int& fd)
+{
+    return this->router_[HttpRespond::NOT_FOUND]->sendMsg(req, fd);
 }
 
 HttpHandleCode HttpRouter::regisetr_http_sender(const std::string_view& respond_type, std::shared_ptr<HttpSender> sender)
@@ -326,7 +337,7 @@ HttpHandleCode HttpSender::constructMsg(std::string& respond_msg,  std::shared_p
     return HttpHandleCode::OK;
 }
 
-HttpHandleCode HttpSender::sendMsg(std::shared_ptr<RequestContent>& req, int fd)
+HttpHandleCode HttpSender::sendMsg(std::shared_ptr<RequestContent>& req, const int& fd)
 {
     std::string respond_msg;
     respond_msg.reserve(SPECS_VALUE::HTTP_RESPOND_MSG_SIZE);
@@ -435,6 +446,8 @@ std::unordered_map<std::string, std::string> HttpGETFileSender::respond_type_map
     {".js",   "application/javascript"}
 };
 
+const std::string HttpGETFileSender::SRC_PATH = "/home/some0nechen/文档/code/CPPServer/src";
+
 // 根据URL获取返回类型
 std::string HttpGETFileSender::getRespondType(std::shared_ptr<RequestContent>& req) const
 {
@@ -450,18 +463,75 @@ std::string HttpGETFileSender::getRespondType(std::shared_ptr<RequestContent>& r
 }
 
 // 获取文件并存放到报文头中
-HttpHandleCode HttpGETFileSender::constructMsg(std::string& respond_msg,  std::shared_ptr<RequestContent>& req)
+void HttpGETFileSender::constructGetRespHeader(std::string& respond_msg,
+    std::shared_ptr<RequestContent>& req, std::string& type, const size_t& body_len)
 {
-    // TODO
+    // 配置报文头版本及返回码
+    respond_msg.append(HttpConst::VERSION_11).append(HttpConst::SP)
+        .append(HttpConst::STATUS_200).append(HttpConst::CRLF);
+    // 配置返回类型
+    respond_msg.append(HttpConst::HEADER_CONTENT_TYPE).append(HttpConst::COLON_SP)
+        .append(std::move(type)).append(HttpConst::CRLF);
+    // 配置返回长度
+    respond_msg.append(HttpConst::HEADER_CONTENT_LENGTH).append(HttpConst::COLON_SP)
+        .append(std::to_string(body_len)).append(HttpConst::CRLF);
+    // 设定是否为keep-alive
+    respond_msg.append(HttpConst::HEADER_CONNECTION).append(HttpConst::COLON_SP);
+    if (req->keep_alive) {
+        respond_msg.append(HttpConst::CONN_KEEP_ALIVE);
+    } else {
+        respond_msg.append(HttpConst::CONN_CLOSE);
+    }
+    respond_msg.append(HttpConst::CRLF);
+    // 配置空行，代表报文头结束，要配置Body
+    respond_msg.append(HttpConst::CRLF);
 
+    return;
+}
+
+HttpHandleCode HttpGETFileSender::sendMsg(std::shared_ptr<RequestContent>& req, const int& fd)
+{
+    auto type = this->getRespondType(req);
+    if (type == "") {
+        return HttpRouter::get_router().respondNotFound(req, fd);
+    }
+
+    std::string file_path = this->SRC_PATH + req->url;
+    auto file_fd = open(file_path.c_str(), O_RDONLY);
+    if (file_fd == -1) {
+        LOG_ERR("Client[%d] read path[%s] err. errno[%d] err reason:%s",
+                fd, file_path.c_str(), errno, strerror(errno));
+    }
+
+    struct stat st;
+    fstat(file_fd, &st);
+    std::string respond_header;
+    this->constructGetRespHeader(respond_header, req, type, st.st_size);
+
+    // 获取body数据
+    auto addr = mmap(nullptr, st.st_size, PROT_READ, MAP_PRIVATE, file_fd, 0);
+
+    // 发送数据
+    struct iovec iov[2];
+    iov[0].iov_base = respond_header.data();
+    iov[0].iov_len  = respond_header.size();
+    iov[1].iov_base = addr;
+    iov[1].iov_len  = st.st_size;
+    auto ret = writev(fd, iov, 2);
+    if (ret == -1) {
+        LOG_ERR("Client[%d] send back msg failed. ret %d errno %d errmsg %s", fd, ret, errno, strerror(errno));
+        return HttpHandleCode::ERR;
+    }
+    LOG_INFO("Client[%d] send back len %d msg success.", fd, ret);
     return HttpHandleCode::OK;
 }
 
 // 集中注册路由
 void HttpRouteAttach()
 {
-    HttpRouter::get_router().regisetr_http_sender(HttpRespond::NOT_FOUND, std::make_shared<HttpSender>());
-    HttpRouter::get_router().regisetr_http_sender(HttpRespond::GET_PING, std::make_shared<HttpPingSender>());
-    HttpRouter::get_router().regisetr_http_sender(HttpRespond::POST_PING, std::make_shared<HttpEchoSender>());
+    HttpRouter::get_router().regisetr_http_sender(HttpRespond::NOT_FOUND,   std::make_shared<HttpSender>());
+    HttpRouter::get_router().regisetr_http_sender(HttpRespond::GET_PING,    std::make_shared<HttpPingSender>());
+    HttpRouter::get_router().regisetr_http_sender(HttpRespond::POST_PING,   std::make_shared<HttpEchoSender>());
     HttpRouter::get_router().regisetr_http_sender(HttpRespond::PARSE_FAULT, std::make_shared<HttpFaultSender>());
+    HttpRouter::get_router().regisetr_http_sender(HttpConst::METHOD_GET,    std::make_shared<HttpGETFileSender>());
 }

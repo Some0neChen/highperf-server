@@ -179,7 +179,8 @@ public:
     }
 
     HttpHandleCode regisetr_http_sender(const std::string_view&, std::shared_ptr<HttpSender>);
-    HttpHandleCode respond(std::shared_ptr<RequestContent>&, int);
+    HttpHandleCode respond(std::shared_ptr<RequestContent>&, const int&);
+    HttpHandleCode respondNotFound(std::shared_ptr<RequestContent>&, const int&);
 };
 
 // http回送报文构造器，基类为404情况
@@ -193,7 +194,7 @@ public:
     HttpSender() = default;
     ~HttpSender() = default;
     virtual HttpHandleCode constructMsg(std::string&, std::shared_ptr<RequestContent>&);
-    virtual HttpHandleCode sendMsg(std::shared_ptr<RequestContent>&, int);
+    virtual HttpHandleCode sendMsg(std::shared_ptr<RequestContent>&, const int&);
 };
 
 // 对应为GET/ping情况
@@ -221,8 +222,10 @@ public:
 class HttpGETFileSender : public HttpSender {
 private:
     static std::unordered_map<std::string, std::string> respond_type_map_;
+    static const std::string SRC_PATH; // 资源文件路径
     std::string getRespondType(std::shared_ptr<RequestContent>&) const;
+    void constructGetRespHeader(std::string&, std::shared_ptr<RequestContent>&, std::string&, const size_t&);
 public:
     HttpGETFileSender() = default;
-    HttpHandleCode constructMsg(std::string&, std::shared_ptr<RequestContent>&) override;
+    HttpHandleCode sendMsg(std::shared_ptr<RequestContent>&, const int&) override;
 };
