@@ -2,10 +2,14 @@
 #include <cstddef>
 #include <string>
 
-class Logger;
+#define LOG_INFO(fmt, ...) \
+    Logger::getInstance().log(LOG_TYPE::INFO, __FILE__, __LINE__, pthread_self(), fmt, ##__VA_ARGS__)
+#define LOG_ERR(fmt, ...) \
+    Logger::getInstance().log(LOG_TYPE::ERR, __FILE__, __LINE__, pthread_self(), fmt, ##__VA_ARGS__)
 
 enum class RET_FLAG {
     OK = 0,
+    UNENABLE,
     ERR
 };
 
@@ -21,6 +25,17 @@ enum class TIME_TYPE {
     YMDHMS,     // yyyymmddhhmmss
     YMDHMS_LOG, // yyyy-mm-dd hh-mm-ss
     COUNT       // Number of time types
+};
+
+namespace LOG_SPEC {
+    constexpr size_t SINGLE_LOG_LEN  = 4096;    // 完整日支行最大长度
+    constexpr size_t MESSAGE_LEN = 2048;        // 用户消息体最大长度
+}
+
+enum class BUFFER_TRIGGER_STATE {
+    FLUSH = 0,
+    CLOSE,
+    TIME_OUT
 };
 
 std::string getTime(TIME_TYPE time_type);
