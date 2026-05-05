@@ -1,6 +1,5 @@
 #include "EventHandler.h"
 #include "HttpModule.h"
-#include "Logger.h"
 #include "ServerPub.h"
 #include <arpa/inet.h>
 #include <cerrno>

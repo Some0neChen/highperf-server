@@ -7,6 +7,11 @@
 #include <fcntl.h>
 #include <memory>
 
+#define LOG_INFO(fmt, ...) \
+    Logger::getInstance().log(LOG_TYPE::INFO, __FILE__, __LINE__, pthread_self(), fmt, ##__VA_ARGS__)
+#define LOG_ERR(fmt, ...) \
+    Logger::getInstance().log(LOG_TYPE::ERR, __FILE__, __LINE__, pthread_self(), fmt, ##__VA_ARGS__)
+
 class LogFile;
 class LogFlusher;
 class LogBuffer;

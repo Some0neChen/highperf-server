@@ -4,7 +4,7 @@
 #include <string>
 
 Logger::Logger() {
-    const std::string file_dir("/home/some0nechen/文档/code/CPPServer/server/log/");
+    const std::string file_dir("/home/some0nechen/document/code/CppServer/log/");
     logFile_ = std::make_shared<LogFile>(file_dir);
     logBuffer_ = std::make_shared<LogBuffer>();
     logFlusher_ = std::make_shared<LogFlusher>(logFile_, logBuffer_);

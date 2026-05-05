@@ -6,7 +6,7 @@
 #include <mutex>
 
 LogBuffer::LogBuffer() {
-    buffer_enable_.store(true);
+    buffer_enable_ = true;
     for (size_t i = 0; i < BUFFER_POOL_NUM; ++i) {
         log_buffer_.push_back(std::make_shared<std::vector<std::string>>());
         log_buffer_.back()->reserve(BUFFER_POOL_LOG_NUM_MAX);
@@ -14,15 +14,14 @@ LogBuffer::LogBuffer() {
     }
 }
 
-LogBuffer::~LogBuffer() { // 析构函数交由Logger类控制
-    stop(); // 此处做冗余控制，如果Logger已经正常执行力该类内的stop()，则进入该函数后会自然返回
-}
-
 void LogBuffer::stop() {
-    if (!buffer_enable_.load()) {
-        return;
+    std::lock_guard<std::mutex> lock(log_buffer_mutex_);
+    {
+        if (!buffer_enable_) {
+            return;
+        }
+        buffer_enable_ = false;
     }
-    buffer_enable_.store(false);
     flush_trigger_.notify_all();
     return;
 }
@@ -64,10 +63,10 @@ void LogBuffer::recycle_buffer(std::shared_ptr<std::vector<std::string>> buffer)
 }
 
 RET_FLAG LogBuffer::push(std::string &&log_str) {
-    if (!buffer_enable_.load()) {
+    std::lock_guard<std::mutex> lock(log_buffer_mutex_);
+    if (!buffer_enable_) {
         return RET_FLAG::UNENABLE;
     }
-    std::lock_guard<std::mutex> lock(log_buffer_mutex_);
     if (available_buffer_pool_.empty()) {
         return RET_FLAG::ERR;
     }
@@ -79,10 +78,10 @@ RET_FLAG LogBuffer::push(std::string &&log_str) {
 BUFFER_TRIGGER_STATE LogBuffer::wait_for_flush_or_timeout(const size_t& interval) {
     std::unique_lock<std::mutex> lock(log_buffer_mutex_);
     bool buf_trigged = flush_trigger_.wait_for(lock, std::chrono::seconds(interval), [this]() {
-        return !buffer_enable_.load() || !flushing_buffer_pool_.empty();
+        return !buffer_enable_ || !flushing_buffer_pool_.empty();
     });
     // 程序退出兜底落盘
-    if (!buffer_enable_.load()) {
+    if (!buffer_enable_) {
         this->force_swap_buffer_locked();
         return BUFFER_TRIGGER_STATE::CLOSE;
     }

@@ -4,6 +4,8 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <mutex>
+#include <queue>
 #include <unistd.h>
 #include <vector>
 #include "ServerPub.h"
@@ -83,7 +85,7 @@ class TimerHandler : public EventHandler {
     Reactor* reactor_;
     EVENT_STATUS timer_trigger_handler(const int&);
     std::mutex timer_mutex_;
-    std::priority_queue<TimeRecordPacket,std::deque<TimeRecordPacket>, TimeRecordPacketComparator> time_record_queue_;
+    std::priority_queue<TimeRecordPacket, std::vector<TimeRecordPacket>, TimeRecordPacketComparator> time_record_queue_;
 public:
     TimerHandler(Reactor*);
     EVENT_STATUS handle_event(unsigned int state) override;

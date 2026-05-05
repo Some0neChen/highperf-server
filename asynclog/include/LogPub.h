@@ -2,11 +2,6 @@
 #include <cstddef>
 #include <string>
 
-#define LOG_INFO(fmt, ...) \
-    Logger::getInstance().log(LOG_TYPE::INFO, __FILE__, __LINE__, pthread_self(), fmt, ##__VA_ARGS__)
-#define LOG_ERR(fmt, ...) \
-    Logger::getInstance().log(LOG_TYPE::ERR, __FILE__, __LINE__, pthread_self(), fmt, ##__VA_ARGS__)
-
 enum class RET_FLAG {
     OK = 0,
     UNENABLE,
@@ -28,6 +23,7 @@ enum class TIME_TYPE {
 };
 
 namespace LOG_SPEC {
+    constexpr size_t BUFFER_POOL_INIT_SIZE = 4; // 缓冲池初始大小
     constexpr size_t SINGLE_LOG_LEN  = 4096;    // 完整日支行最大长度
     constexpr size_t MESSAGE_LEN = 2048;        // 用户消息体最大长度
 }
