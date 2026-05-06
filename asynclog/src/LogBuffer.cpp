@@ -2,16 +2,13 @@
 #include "LogPub.h"
 #include <chrono>
 #include <cstddef>
+#include <cstring>
 #include <memory>
 #include <mutex>
 
 LogBuffer::LogBuffer() {
+    attach_log_buffer_block(LOG_SPEC::BUFFER_POOL_INIT_SIZE);
     buffer_enable_ = true;
-    for (size_t i = 0; i < BUFFER_POOL_NUM; ++i) {
-        log_buffer_.push_back(std::make_shared<std::vector<std::string>>());
-        log_buffer_.back()->reserve(BUFFER_POOL_LOG_NUM_MAX);
-        available_buffer_pool_.push(log_buffer_.back());
-    }
 }
 
 void LogBuffer::stop() {
@@ -26,19 +23,33 @@ void LogBuffer::stop() {
     return;
 }
 
+void LogBuffer::attach_log_buffer_block(const size_t& block_size) {
+    buffer_data_.push_back(std::vector<char>());
+    buffer_data_.back().reserve(block_size * IOV_MAX * LOG_SPEC::SINGLE_LOG_LEN);
+    buffer_data_.back().resize(block_size * IOV_MAX * LOG_SPEC::SINGLE_LOG_LEN);
+    for (size_t i = 0; i < block_size; ++i) {
+        available_buffer_pool_.push(std::make_shared<BufferBlock>());
+        available_buffer_pool_.back()->block_data_ =
+            buffer_data_.back().data() + i * IOV_MAX * LOG_SPEC::SINGLE_LOG_LEN;
+        available_buffer_pool_.back()->write_pos_ = 0;
+        available_buffer_pool_.back()->written_bytes_ = 0;
+        available_buffer_pool_.back()->block_iovec_.reserve(IOV_MAX);
+        available_buffer_pool_.back()->block_iovec_.resize(IOV_MAX);
+    }
+}
+
 void LogBuffer::check_buffer_flushing_locked() {
-    if (available_buffer_pool_.front()->size() < BUFFER_POOL_LOG_NUM_MAX) {
+    if (available_buffer_pool_.front()->write_pos_ < IOV_MAX) {
         return;
     }
-    flushing_buffer_pool_.push(available_buffer_pool_.front());
-    available_buffer_pool_.pop();
+    force_swap_buffer_locked();
     flush_trigger_.notify_all();
     return;
 }
 
 // 提供给LogFlusher的接口，用于定时落盘时，主动把数据切换到要写入的队列中
-void LogBuffer::force_swap_buffer_locked() {  
-    if (available_buffer_pool_.empty() || available_buffer_pool_.front()->empty()) {
+void LogBuffer::force_swap_buffer_locked() {
+    if (available_buffer_pool_.empty() || available_buffer_pool_.front()->write_pos_ == 0) {
         return;
     }
     flushing_buffer_pool_.push(available_buffer_pool_.front());
@@ -46,7 +57,7 @@ void LogBuffer::force_swap_buffer_locked() {
     return;
 }
 
-std::shared_ptr<std::vector<std::string>> LogBuffer::get_flushing_buffer() {
+std::shared_ptr<BufferBlock> LogBuffer::get_flushing_buffer() {
     std::lock_guard<std::mutex> lock(log_buffer_mutex_);
     if (flushing_buffer_pool_.empty()) {
         return nullptr;
@@ -56,13 +67,16 @@ std::shared_ptr<std::vector<std::string>> LogBuffer::get_flushing_buffer() {
     return ret;
 }
 
-void LogBuffer::recycle_buffer(std::shared_ptr<std::vector<std::string>> buffer) {
-    buffer->clear();
+void LogBuffer::recycle_buffer(std::shared_ptr<BufferBlock> buffer) {
+    // The block is owned only by the flusher before it is pushed back
+    // to available_buffer_pool_, so resetting write_pos_ here is safe.
+    buffer->write_pos_ = 0;
+    buffer->written_bytes_ = 0;
     std::lock_guard<std::mutex> lock(log_buffer_mutex_);
     available_buffer_pool_.push(buffer);
 }
 
-RET_FLAG LogBuffer::push(std::string &&log_str) {
+RET_FLAG LogBuffer::push(const char* log_str, const size_t& log_len) {
     std::lock_guard<std::mutex> lock(log_buffer_mutex_);
     if (!buffer_enable_) {
         return RET_FLAG::UNENABLE;
@@ -70,7 +84,16 @@ RET_FLAG LogBuffer::push(std::string &&log_str) {
     if (available_buffer_pool_.empty()) {
         return RET_FLAG::ERR;
     }
-    available_buffer_pool_.front()->push_back(std::move(log_str));
+    if (log_len > LOG_SPEC::SINGLE_LOG_LEN) {
+        return RET_FLAG::ERR;
+    }
+    auto& current_buffer = available_buffer_pool_.front();
+    current_buffer->block_iovec_[current_buffer->write_pos_].iov_base =
+        current_buffer->block_data_ + current_buffer->write_pos_ * LOG_SPEC::SINGLE_LOG_LEN;
+    current_buffer->block_iovec_[current_buffer->write_pos_].iov_len = log_len;
+    current_buffer->written_bytes_ += log_len;
+    memcpy(current_buffer->block_iovec_[current_buffer->write_pos_].iov_base, log_str, log_len);
+    ++current_buffer->write_pos_;
     check_buffer_flushing_locked();
     return RET_FLAG::OK;
 }

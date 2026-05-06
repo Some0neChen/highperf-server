@@ -7,13 +7,16 @@
 #include "Logger.h"
 
 constexpr int THREAD_NUM   = 8;      // 并发线程数
-constexpr int LOG_PER_THREAD = 10000; // 每个线程写多少条
+constexpr int LOG_PER_THREAD = 100000; // 每个线程写多少条
 
 std::atomic<int> total_logged{0};
 std::atomic<int> total_dropped{0};
 
 void log_worker(int thread_id) {
     for (int i = 0; i < LOG_PER_THREAD; ++i) {
+         if ((i & 1023) == 0) {
+            std::this_thread::yield();
+        }
         auto ret = LOG_INFO("thread=%d seq=%d payload=benchmark_test", thread_id, i);
         if (ret == RET_FLAG::OK) {
             ++total_logged;
@@ -24,6 +27,7 @@ void log_worker(int thread_id) {
 }
 
 int main() {
+    // 并发吞吐测试
     auto start = std::chrono::steady_clock::now();
 
     std::vector<std::thread> threads;
@@ -46,6 +50,14 @@ int main() {
     std::cout << "吞吐量:   "
               << (total_logged * 1000 / elapsed_ms)
               << " 条/秒\n";
+
+    // 测试截断
+    // char buffer[5886];
+    // memset(buffer, 'A', sizeof(buffer) - 1);
+    // buffer[sizeof(buffer) - 1] = '\0';
+    // for (int i = 0; i < 100000; ++i) {
+    //     LOG_INFO(buffer);
+    // }
 
     // 等 Flusher 把剩余数据落盘
     std::this_thread::sleep_for(std::chrono::seconds(1));

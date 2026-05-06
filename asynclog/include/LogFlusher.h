@@ -2,7 +2,6 @@
 
 #include "LogFile.h"
 #include "LogBuffer.h"
-#include "Logger.h"
 #include <memory>
 #include <thread>
 

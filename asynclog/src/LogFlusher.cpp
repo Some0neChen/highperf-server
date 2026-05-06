@@ -2,7 +2,7 @@
 #include <pthread.h>
 
 void LogFlusher::flush_routine() {
-    std::shared_ptr<std::vector<std::string>> buffer_data;
+    std::shared_ptr<BufferBlock> buffer_data;
     while (true) {
         auto state = buffer_->wait_for_flush_or_timeout(3);
         while ((buffer_data = buffer_->get_flushing_buffer())) {

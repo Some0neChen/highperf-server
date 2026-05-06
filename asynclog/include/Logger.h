@@ -6,6 +6,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <memory>
+#include <pthread.h>
 
 #define LOG_INFO(fmt, ...) \
     Logger::getInstance().log(LOG_TYPE::INFO, __FILE__, __LINE__, pthread_self(), fmt, ##__VA_ARGS__)

@@ -3,11 +3,11 @@
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
-#include <memory>
 #include <string>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <vector>
+#include <memory>
+#include "LogPub.h"
 
 class LogFile {
     std::string dir_path_;
@@ -20,11 +20,12 @@ class LogFile {
 
     bool is_file_exist();
     void reset_file_fd();
-    void roll_if_need(const std::string& log_str);
+    void roll_if_need(const std::shared_ptr<BufferBlock>&);
+    RET_FLAG writev_all(const std::shared_ptr<BufferBlock>&);
 public:
     LogFile(std::string path);
     ~LogFile();
-    void write_log(const std::shared_ptr<std::vector<std::string>>& log_buffer);
+    void write_log(const std::shared_ptr<BufferBlock>&);
     LogFile(const LogFile&) = delete;
     LogFile& operator=(const LogFile&) = delete;
     LogFile(LogFile&&) = delete;

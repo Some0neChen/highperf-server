@@ -1,6 +1,7 @@
 #include "../include/LogPub.h"
 
 #include <arpa/inet.h>
+#include <bits/types/timer_t.h>
 #include <chrono>
 #include <cstddef>
 #include <ctime>
@@ -28,4 +29,20 @@ std::string getTime(TIME_TYPE time_type) {
     }
     
     return std::string(time_buffer, date_len);
+}
+
+std::string_view getCachedLogTime() {
+    thread_local time_t cache_sec = 0;
+    thread_local char cached_time[MAX_TIME_STRING_LENGTH] = {};
+    thread_local unsigned short date_len = 0;
+
+    time_t now = time(nullptr);
+    if (now != cache_sec) {
+        cache_sec = now;
+        struct tm tm_info;
+        localtime_r(&cache_sec, &tm_info);
+        date_len = strftime(cached_time, sizeof(cached_time),
+            TIME_FORMAT[static_cast<size_t>(TIME_TYPE::YMDHMS_LOG)], &tm_info);
+    }
+    return std::string_view(cached_time, date_len);
 }

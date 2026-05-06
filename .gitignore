@@ -13,6 +13,7 @@
 
 # server_src
 src/
+diaglog/
 
 # document
 *.md
