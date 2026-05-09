@@ -1,35 +1,35 @@
 #include <Reactor.h>
 #include "EventHandler.h"
 #include "Logger.h"
+#include <cerrno>
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <mutex>
+#include <queue>
+#include <thread>
 #include <vector>
 
 void Reactor::reactor_running_thread() {
     epoll_event events[MAX_EVENTS];
     std::function<EVENT_STATUS(unsigned int)> task;
     LOG_INFO("Reactor[%d] running.", this->epoll_fd_);
-    while (reactor_running_state_) {
+    while (reactor_running_state_.load()) {
         auto trig_times = epoll_wait(this->epoll_fd_, events, MAX_EVENTS, -1);
         for (int i = 0; i < trig_times; ++i) {
             if (events[i].data.fd == this->wake_fd_) {
-                return;
+                handle_wake_up();
+                do_pending_tasks();
+                continue;
             }
-            std::shared_ptr<EventHandler> handler;
-            {
-                std::lock_guard<std::mutex> lock(conn_mutex_);
-                auto find_iter = connections_.find(events[i].data.fd);
-                if (find_iter == connections_.end() || find_iter->second == nullptr) { // at会抛出异常，此处用find
-                    LOG_ERR("Reactor[%d] find handler[%d] err.", this->epoll_fd_, events[i].data.fd);
-                    continue;
-                }
-                handler = find_iter->second;
+            auto find_iter = connections_.find(events[i].data.fd);
+            if (find_iter == connections_.end() || find_iter->second == nullptr) { // at会抛出异常，此处用find
+                LOG_ERR("Reactor[%d] find handler[%d] err.", this->epoll_fd_, events[i].data.fd);
+                continue;
             }
+            auto handler = find_iter->second;
             auto state = events[i].events;
-            thread_pool_->add_task([this, handler, state]() {
-                return handler->handle_event(state);
-            });
+            auto ret = handler->handle_event(state);
         }
     }
 }
@@ -76,7 +76,6 @@ Reactor::Reactor(std::shared_ptr<ThreadPool<std::function<EVENT_STATUS()>>>& thr
 }
 
 void Reactor::reset_connection(const int& fd) {
-    std::lock_guard<std::mutex> lock(conn_mutex_);
     if (connections_.find(fd) == connections_.end()) {
         return;
     }
@@ -91,21 +90,18 @@ void Reactor::reset_connection(const int& fd) {
 // 批量重置连接
 // 主要用于定时器批量检测到过期连接时进行批量重置，减少加锁的次数
 // param：expired_conns 过期连接列表，包含连接fd和对应的version_no，如果version_no说明是已被刷新的事件，不进行处理
-void Reactor::timer_reset_batch_conns(const std::vector<std::pair<int, unsigned int>>& expired_conns) {
+void Reactor::timer_reset_batch_conns(const std::shared_ptr<std::vector<std::pair<int, unsigned int>>>& expired_conns) {
     std::vector<int> actual_expired_conns;
-    {
-        std::lock_guard<std::mutex> lock(this->conn_mutex_);
-        for (auto conn : expired_conns) {
-            // 有可能连接已经断开了，但是对应的fd事件还保存在timer的堆里，这里要做预防，防止踩空
-            if (!this->is_client_exist(conn.first)) {
-                continue;
-            }
-            if (dynamic_cast<ClientHandler*>(this->connections_[conn.first].get())->get_version_no() != conn.second) {
-                continue;
-            }
-            LOG_INFO("[%s] Client fd[%d] have expired.", __func__, conn.first);
-            actual_expired_conns.push_back(conn.first);
+    for (auto conn : *expired_conns) {
+        // 有可能连接已经断开了，但是对应的fd事件还保存在timer的堆里，这里要做预防，防止踩空
+        if (!this->is_client_exist(conn.first)) {
+            continue;
         }
+        if (dynamic_cast<ClientHandler*>(this->connections_[conn.first].get())->get_version_no() != conn.second) {
+            continue;
+        }
+        LOG_INFO("[%s] Client fd[%d] have expired.", __func__, conn.first);
+        actual_expired_conns.push_back(conn.first);
     }
     for (auto conn : actual_expired_conns) {
         this->reset_connection(conn);
@@ -113,20 +109,9 @@ void Reactor::timer_reset_batch_conns(const std::vector<std::pair<int, unsigned 
 }
 
 Reactor::~Reactor() { // 担心不加锁有问题
-    reactor_running_state_.store(false);
-    uint64_t val = 1;   // 通过向wake_fd写入数据来唤醒epoll监听线程，此处应该读写8字节
-    write(this->wake_fd_, &val, sizeof(val)); // 唤醒epoll监听线程
+    stop_reactor();
     if (reactor_thread_.joinable()) {
         reactor_thread_.join();
-    }
-    // 防止删除元素过程中迭代器失效，先把fd都取出来再挨个删除
-    std::vector<int> release_conns;
-    release_conns.reserve(this->connections_.size());
-    for (auto conn_ : connections_) {
-        release_conns.push_back(conn_.first);
-    }
-    for (auto conn : release_conns) {
-        this->reset_connection(conn);
     }
     close(this->epoll_fd_);
     close(this->wake_fd_);
@@ -134,7 +119,7 @@ Reactor::~Reactor() { // 担心不加锁有问题
 
 EVENT_STATUS Reactor::add_connection(const int& fd, unsigned int listen_state, std::shared_ptr<EventHandler> conn) {
     // 隐患：在加锁内进行数据结构的find操作，时间复杂度最坏可能达到O(n)，这里是一个将来高延迟的可疑点
-    std::lock_guard<std::mutex> lock(conn_mutex_);
+    // std::lock_guard<std::mutex> lock(conn_mutex_);
     if (connections_.find(fd) != connections_.end() && connections_[fd] != nullptr) {
         LOG_ERR("Reactor[%d] add socket_fd[%d] err. The fd connection is already exist.", this->epoll_fd_, fd);
         return EVENT_STATUS::CLIENT_USING_ERR;
@@ -164,4 +149,101 @@ int Reactor::get_epoll_fd() const {
 
 void Reactor::add_timer_task(const int &fd, const unsigned int &version_no, const std::chrono::steady_clock::time_point &time_point) {
     this->timer_handler_->add_timer(fd, version_no, time_point);
+}
+
+EVENT_STATUS Reactor::stop_reactor() {
+    run_in_loop([this]() {
+        auto ret =  remove_all_conns();
+        reactor_running_state_.store(false);
+        return ret;
+    });
+    return this->wake_up();
+}
+
+EVENT_STATUS Reactor::queue_in_loop(reactor_task task) {
+    {
+        std::lock_guard<std::mutex> lock(task_mutex_);
+        this->pending_tasks_.push(std::move(task));
+    }
+    return this->wake_up();
+}
+
+EVENT_STATUS Reactor::run_in_loop(reactor_task task) {
+    if (is_in_loop_thread()) {
+        task();
+        return EVENT_STATUS::OK;
+    }
+    queue_in_loop(task);
+    return EVENT_STATUS::OK;
+}
+
+EVENT_STATUS Reactor::wake_up() {
+    if (wake_fd_ == -1) {
+        LOG_ERR("Reactor[%d] pending loop already closed. wake_fd is invalid.", this->epoll_fd_);
+        return EVENT_STATUS::REACTOR_WAKEUP_ERR;
+    }
+    /* 通过向wake_fd写入数据来唤醒epoll监听线程，此处应该读写8字节 */
+    uint64_t val = 1;
+    /* 唤醒epoll监听线程，通知有事务 */
+    auto ret = write(this->wake_fd_, &val, sizeof(val)); 
+    if (ret < 0) {
+        LOG_ERR("Reactor[%d] wake up err. errorno %d.", this->epoll_fd_, errno);
+        return EVENT_STATUS::REACTOR_WAKEUP_ERR;
+    }
+    return EVENT_STATUS::OK;
+}
+
+EVENT_STATUS Reactor::handle_wake_up() {
+    if (wake_fd_ == -1) {
+        LOG_ERR("Reactor[%d] pending loop already closed. wake_fd is invalid.", this->epoll_fd_);
+        return EVENT_STATUS::REACTOR_WAKEUP_ERR;
+    }
+    uint64_t val;
+    while(true) {
+        auto ret = read(this->wake_fd_, &val, sizeof(val)); // 读取wake_fd，关闭事件，防止重复触发
+        if (ret == sizeof(val)) {
+            // 读取成功
+            break;
+        }
+        if (ret == -1 && errno == EINTR) {
+            // 系统信号中断，继续读取
+            continue;
+        }
+        if (ret == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            // 已经读完，退出循环
+            break;
+        }
+        LOG_ERR("Reactor[%d] handle wake up err. errorno %d.", this->epoll_fd_, errno);
+        return EVENT_STATUS::REACTOR_WAKEUP_ERR;
+    }
+    return EVENT_STATUS::OK;
+}
+
+EVENT_STATUS Reactor::do_pending_tasks() {
+    std::queue<reactor_task, std::deque<reactor_task>> pending_tasks;
+    {
+        std::lock_guard<std::mutex> lock(this->task_mutex_);
+        pending_tasks.swap(this->pending_tasks_);
+    }
+    while (!pending_tasks.empty()) {
+        pending_tasks.front()();
+        pending_tasks.pop();
+    }
+    return EVENT_STATUS::OK;
+}
+
+bool Reactor::is_in_loop_thread() {
+    return std::this_thread::get_id() == this->reactor_thread_.get_id();
+}
+
+EVENT_STATUS Reactor::remove_all_conns() {
+    std::vector<int> fd_vec;
+    fd_vec.reserve(connections_.size());
+    for (const auto& conn : connections_) {
+        fd_vec.push_back(conn.first);
+    }
+    for (const auto& fd : fd_vec) {
+        reset_connection(fd);
+    }
+    return EVENT_STATUS::OK;
 }

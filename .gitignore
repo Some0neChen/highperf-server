@@ -56,3 +56,5 @@ diaglog/
 dir
 
 build/
+compile_commands.json
+.vscode

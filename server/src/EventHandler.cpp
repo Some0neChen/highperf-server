@@ -57,12 +57,9 @@ EVENT_STATUS ListenHandler::handle_event(unsigned int state)
         auto listen_state = EPOLLIN | EPOLLET | EPOLLRDHUP;
         ++this->robin_count_;
         auto reactor = this->reactors_->at(robin_count_ % this->reactors_->size());
-        auto ret = reactor->
-            add_connection(client_fd, listen_state, std::make_shared<ClientHandler>(client_fd, reactor));
-        if (ret != EVENT_STATUS::OK) {
-            LOG_ERR("epoll add client_fd err.");
-            return ret;  
-        }
+        reactor->queue_in_loop([client_fd, listen_state, reactor]() mutable {
+            return reactor->add_connection(client_fd, listen_state, std::make_shared<ClientHandler>(client_fd, reactor));
+        });
     }
     return EVENT_STATUS::OK;;
 }
@@ -133,14 +130,11 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
         buffer_->update_write_pos(len, extra_buf);
         LOG_INFO("Epoll[%d] Client fd[%d] receive msg success, len %u", reactor_ptr->get_epoll_fd(), this->fd_, len);
     }
-    // 测试用，打印报文长啥样：
-    // std::string http(this->buffer_->get_data() + this->buffer_->get_read_pos(), this->buffer_->readable_size());
-    // LOG_INFO("--------------------------------\n%s\n--------------------------------", http.c_str());
-    //--
     ParseResult parse_ret;
     std::shared_ptr<TaskPacket> packet;
     while ((parse_ret = HttpFsmManager::get_fsm().fsm_excute( this->request_packet_)) == ParseResult::COMPLETE) {
-        // 构造任务包
+        // 解析请求报文成功，构造任务包并加入线程池
+        // 在线程池中完成响应报文的构造
         auto request_header = this->request_packet_.pop_content();
         packet = std::make_shared<TaskPacket>(request_header, this->reactor_, this->fd_);
         reactor_ptr->thread_pool_->add_task([packet](){
@@ -150,10 +144,10 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
     }
     // 错包场景
     if (parse_ret == ParseResult::ERROR) {
-        packet->request_header_->url.clear();
+        packet = std::make_shared<TaskPacket>(std::make_shared<RequestContent>(), this->reactor_, this->fd_);
         packet->request_header_->method = HttpRespond::PARSE_FAULT;
-        HttpRouter::get_router().respond(packet->request_header_, this->fd_);
-        this->reactor_.lock()->reset_connection(this->fd_);
+        packet->request_header_->keep_alive = false;
+        HttpRouter::get_router().respond(packet);
         return EVENT_STATUS::OK;
     }
     
@@ -230,7 +224,7 @@ EVENT_STATUS TimerHandler::handle_event(unsigned int state) {
     }
 
     // 批量取出已经过时的时间事件，这么处理是为了可以少反复加锁，在Reactor也可以只加锁一次后批量处理
-    std::vector<std::pair<int, unsigned int>> expired_conns;
+    auto expired_conns = std::make_shared<std::vector<std::pair<int, unsigned int>>>();
     {
         std::lock_guard<std::mutex> lock(timer_mutex_);
         auto now_time = std::chrono::steady_clock::now();
@@ -238,10 +232,14 @@ EVENT_STATUS TimerHandler::handle_event(unsigned int state) {
             return EVENT_STATUS::OK;
         }
         while (!this->time_record_queue_.empty() && now_time > this->time_record_queue_.top().last_active_time) {
-            expired_conns.emplace_back(this->time_record_queue_.top().fd, this->time_record_queue_.top().version_no);
+            expired_conns->emplace_back(this->time_record_queue_.top().fd, this->time_record_queue_.top().version_no);
             this->time_record_queue_.pop();
         }
     }
-    this->reactor_->timer_reset_batch_conns(expired_conns);
+    this->reactor_->run_in_loop([this, expired_conns]() {
+        this->reactor_->timer_reset_batch_conns(expired_conns);
+        return EVENT_STATUS::OK;
+    });
+    
     return EVENT_STATUS::OK;
 }

@@ -15,6 +15,8 @@
 #include <sys/uio.h>
 #include <unordered_map>
 #include <sys/mman.h>
+#include "EventHandler.h"
+#include "Reactor.h"
 
 // 结构体成员函数实现
 
@@ -284,22 +286,22 @@ void init_http_parse_fsm()
 // HttpResponse报文构造API部分
 
 // 根据路由类型返回对应的发送器，找不到则返回404
-HttpHandleCode HttpRouter::respond(std::shared_ptr<RequestContent>& req, const int& fd)
+HttpHandleCode HttpRouter::respond(std::shared_ptr<TaskPacket>& task)
 {
     std::string route_key;
-    route_key.append(req->method).append(HttpConst::SP).append(req->url);
+    route_key.append(task->request_header_->method).append(HttpConst::SP).append(task->request_header_->url);
     if (this->router_.find(route_key) != this->router_.end()) {
-        return this->router_[route_key]->sendMsg(req, fd);
+        return this->router_[route_key]->sendMsg(task);
     }
-    if (this->router_.find(req->method) != this->router_.end()) {
-        return this->router_[req->method]->sendMsg(req, fd);
+    if (this->router_.find(task->request_header_->method) != this->router_.end()) {
+        return this->router_[task->request_header_->method]->sendMsg(task);
     }
-    return this->respondNotFound(req, fd);
+    return this->respondNotFound(task);
 }
 
-HttpHandleCode HttpRouter::respondNotFound(std::shared_ptr<RequestContent>& req, const int& fd)
+HttpHandleCode HttpRouter::respondNotFound(std::shared_ptr<TaskPacket>& task)
 {
-    return this->router_[HttpRespond::NOT_FOUND]->sendMsg(req, fd);
+    return this->router_[HttpRespond::NOT_FOUND]->sendMsg(task);
 }
 
 HttpHandleCode HttpRouter::regisetr_http_sender(const std::string_view& respond_type, std::shared_ptr<HttpSender> sender)
@@ -312,125 +314,132 @@ HttpHandleCode HttpRouter::regisetr_http_sender(const std::string_view& respond_
 }
 
 // 默认基类：对应当前处理方式未适配的情况
-HttpHandleCode HttpSender::constructMsg(std::string& respond_msg,  std::shared_ptr<RequestContent>& req) {
+HttpHandleCode HttpSender::constructMsg(std::shared_ptr<std::string>& respond_msg,  std::shared_ptr<RequestContent>& req) {
     // 配置报文头版本及返回码
-    respond_msg.append(HttpConst::VERSION_11).append(HttpConst::SP)
+    respond_msg->append(HttpConst::VERSION_11).append(HttpConst::SP)
         .append(HttpConst::STATUS_404).append(HttpConst::CRLF);
     // 配置返回类型
-    respond_msg.append(HttpConst::HEADER_CONTENT_TYPE).append(HttpConst::COLON_SP)
+    respond_msg->append(HttpConst::HEADER_CONTENT_TYPE).append(HttpConst::COLON_SP)
         .append(HttpConst::CONTENT_TYPE_HTML).append(HttpConst::CRLF);
     // 配置返回长度
-    respond_msg.append(HttpConst::HEADER_CONTENT_LENGTH).append(HttpConst::COLON_SP)
+    respond_msg->append(HttpConst::HEADER_CONTENT_LENGTH).append(HttpConst::COLON_SP)
         .append(std::to_string(HttpConst::MSG_404.size())).append(HttpConst::CRLF);
     // 设定是否为keep-alive
-    respond_msg.append(HttpConst::HEADER_CONNECTION).append(HttpConst::COLON_SP);
+    respond_msg->append(HttpConst::HEADER_CONNECTION).append(HttpConst::COLON_SP);
     if (req->keep_alive) {
-        respond_msg.append(HttpConst::CONN_KEEP_ALIVE);
+        respond_msg->append(HttpConst::CONN_KEEP_ALIVE);
     } else {
-        respond_msg.append(HttpConst::CONN_CLOSE);
+        respond_msg->append(HttpConst::CONN_CLOSE);
     }
-    respond_msg.append(HttpConst::CRLF);
+    respond_msg->append(HttpConst::CRLF);
     // 配置空行，代表报文头结束，要配置Body
-    respond_msg.append(HttpConst::CRLF);
-    respond_msg.append(HttpConst::MSG_404);
+    respond_msg->append(HttpConst::CRLF);
+    respond_msg->append(HttpConst::MSG_404);
     
     return HttpHandleCode::OK;
 }
 
-HttpHandleCode HttpSender::sendMsg(std::shared_ptr<RequestContent>& req, const int& fd)
+HttpHandleCode HttpSender::sendMsg(std::shared_ptr<TaskPacket>& task)
 {
-    std::string respond_msg;
-    respond_msg.reserve(SPECS_VALUE::HTTP_RESPOND_MSG_SIZE);
-    this->constructMsg(respond_msg, req);
+    auto respond_msg = std::make_shared<std::string>();
+    respond_msg->reserve(SPECS_VALUE::HTTP_RESPOND_MSG_SIZE);
+    this->constructMsg(respond_msg, task->request_header_);
 
-    // 发送响应报文
-    auto ret = send(fd, respond_msg.c_str(), respond_msg.size(), MSG_NOSIGNAL);
-    if (ret == -1) {
-        LOG_ERR("Client[%d] send back msg failed. ret %d errno %d errmsg %s", fd, ret, errno, strerror(errno));
-        return HttpHandleCode::ERR;
-    }
-    LOG_INFO("Client[%d] send back len %d msg success.", fd, ret);
+    // 对客户端的IO都归属于Reactor
+    task->reactor_.lock()->queue_in_loop([task, respond_msg]() {
+        auto ret = send(task->fd_, respond_msg->c_str(), respond_msg->size(), MSG_NOSIGNAL);
+        if (ret == -1) {
+            LOG_ERR("Client[%d] send back msg failed. ret %d errno %d errmsg %s", task->fd_, ret, errno, strerror(errno));
+            return EVENT_STATUS::CLIENT_SEND_ERR;
+        }
+        LOG_INFO("Client[%d] send back len %d msg success.", task->fd_, ret);
+        if (!task->request_header_->keep_alive) {
+            task->reactor_.lock()->reset_connection(task->fd_);
+        }
+        return EVENT_STATUS::OK;
+    });
+    
     return HttpHandleCode::OK;
 }
 
 // ping
 // 对应为ping情况
-HttpHandleCode HttpPingSender::constructMsg(std::string& respond_msg,  std::shared_ptr<RequestContent>& req)
+HttpHandleCode HttpPingSender::constructMsg(std::shared_ptr<std::string>& respond_msg,  std::shared_ptr<RequestContent>& req)
 {
     // 配置报文头版本及返回码
-    respond_msg.append(HttpConst::VERSION_11).append(HttpConst::SP)
+    respond_msg->append(HttpConst::VERSION_11).append(HttpConst::SP)
         .append(HttpConst::STATUS_200).append(HttpConst::CRLF);
     // 配置返回类型
-    respond_msg.append(HttpConst::HEADER_CONTENT_TYPE).append(HttpConst::COLON_SP)
+    respond_msg->append(HttpConst::HEADER_CONTENT_TYPE).append(HttpConst::COLON_SP)
         .append(HttpConst::CONTENT_TYPE_HTML).append(HttpConst::CRLF);
     // 配置返回长度
-    respond_msg.append(HttpConst::HEADER_CONTENT_LENGTH).append(HttpConst::COLON_SP)
+    respond_msg->append(HttpConst::HEADER_CONTENT_LENGTH).append(HttpConst::COLON_SP)
         .append(std::to_string(HttpConst::MSG_PONG.size())).append(HttpConst::CRLF);
     // 设定是否为keep-alive
-    respond_msg.append(HttpConst::HEADER_CONNECTION).append(HttpConst::COLON_SP);
+    respond_msg->append(HttpConst::HEADER_CONNECTION).append(HttpConst::COLON_SP);
     if (req->keep_alive) {
-        respond_msg.append(HttpConst::CONN_KEEP_ALIVE);
+        respond_msg->append(HttpConst::CONN_KEEP_ALIVE);
     } else {
-        respond_msg.append(HttpConst::CONN_CLOSE);
+        respond_msg->append(HttpConst::CONN_CLOSE);
     }
-    respond_msg.append(HttpConst::CRLF);
+    respond_msg->append(HttpConst::CRLF);
     // 配置空行，代表报文头结束，要配置Body
-    respond_msg.append(HttpConst::CRLF);
-    respond_msg.append(HttpConst::MSG_PONG);
+    respond_msg->append(HttpConst::CRLF);
+    respond_msg->append(HttpConst::MSG_PONG);
 
     return HttpHandleCode::OK;
 }
 
 // echo
 // 对应为Post/echo情况
-HttpHandleCode HttpEchoSender::constructMsg(std::string& respond_msg,  std::shared_ptr<RequestContent>& req)
+HttpHandleCode HttpEchoSender::constructMsg(std::shared_ptr<std::string>& respond_msg,  std::shared_ptr<RequestContent>& req)
 {
     std::string body = "{\"msg\":\"hello\"}";
     // 配置报文头版本及返回码
-    respond_msg.append(HttpConst::VERSION_11).append(HttpConst::SP)
+    respond_msg->append(HttpConst::VERSION_11).append(HttpConst::SP)
         .append(HttpConst::STATUS_200).append(HttpConst::CRLF);
     // 配置返回类型
-    respond_msg.append(HttpConst::HEADER_CONTENT_TYPE).append(HttpConst::COLON_SP)
+    respond_msg->append(HttpConst::HEADER_CONTENT_TYPE).append(HttpConst::COLON_SP)
         .append(HttpConst::CONTENT_TYPE_JSON).append(HttpConst::CRLF);
     // 配置返回长度
-    respond_msg.append(HttpConst::HEADER_CONTENT_LENGTH).append(HttpConst::COLON_SP)
+    respond_msg->append(HttpConst::HEADER_CONTENT_LENGTH).append(HttpConst::COLON_SP)
         .append(std::to_string(body.size())).append(HttpConst::CRLF);
     // 设定是否为keep-alive
-    respond_msg.append(HttpConst::HEADER_CONNECTION).append(HttpConst::COLON_SP);
+    respond_msg->append(HttpConst::HEADER_CONNECTION).append(HttpConst::COLON_SP);
     if (req->keep_alive) {
-        respond_msg.append(HttpConst::CONN_KEEP_ALIVE);
+        respond_msg->append(HttpConst::CONN_KEEP_ALIVE);
     } else {
-        respond_msg.append(HttpConst::CONN_CLOSE);
+        respond_msg->append(HttpConst::CONN_CLOSE);
     }
-    respond_msg.append(HttpConst::CRLF);
+    respond_msg->append(HttpConst::CRLF);
     // 配置空行，代表报文头结束，要配置Body
-    respond_msg.append(HttpConst::CRLF);
-    respond_msg.append(std::move(body));
+    respond_msg->append(HttpConst::CRLF);
+    respond_msg->append(std::move(body));
 
     return HttpHandleCode::OK;
 }
 
 // Fault
 // 对应为400 报文解析出错的情况
-HttpHandleCode HttpFaultSender::constructMsg(std::string& respond_msg,  std::shared_ptr<RequestContent>& req)
+HttpHandleCode HttpFaultSender::constructMsg(std::shared_ptr<std::string>& respond_msg,  std::shared_ptr<RequestContent>& req)
 {
     std::string body = "Bad Request";
     // 配置报文头版本及返回码
-    respond_msg.append(HttpConst::VERSION_11).append(HttpConst::SP)
+    respond_msg->append(HttpConst::VERSION_11).append(HttpConst::SP)
         .append(HttpConst::STATUS_400).append(HttpConst::CRLF);
     // 配置返回类型
-    respond_msg.append(HttpConst::HEADER_CONTENT_TYPE).append(HttpConst::COLON_SP)
+    respond_msg->append(HttpConst::HEADER_CONTENT_TYPE).append(HttpConst::COLON_SP)
         .append(HttpConst::CONTENT_TYPE_TEXT).append(HttpConst::CRLF);
     // 配置返回长度
-    respond_msg.append(HttpConst::HEADER_CONTENT_LENGTH).append(HttpConst::COLON_SP)
+    respond_msg->append(HttpConst::HEADER_CONTENT_LENGTH).append(HttpConst::COLON_SP)
         .append(std::to_string(body.size())).append(HttpConst::CRLF);
     // 400统一关掉连接，不维持Keep-Alive
-    respond_msg.append(HttpConst::HEADER_CONNECTION).append(HttpConst::COLON_SP);
-    respond_msg.append(HttpConst::CONN_CLOSE);
-    respond_msg.append(HttpConst::CRLF);
+    respond_msg->append(HttpConst::HEADER_CONNECTION).append(HttpConst::COLON_SP);
+    respond_msg->append(HttpConst::CONN_CLOSE);
+    respond_msg->append(HttpConst::CRLF);
     // 配置空行，代表报文头结束，要配置Body
-    respond_msg.append(HttpConst::CRLF);
-    respond_msg.append(std::move(body));
+    respond_msg->append(HttpConst::CRLF);
+    respond_msg->append(std::move(body));
 
     return HttpHandleCode::OK;
 }
@@ -463,66 +472,74 @@ std::string HttpGETFileSender::getRespondType(std::shared_ptr<RequestContent>& r
 }
 
 // 获取文件并存放到报文头中
-void HttpGETFileSender::constructGetRespHeader(std::string& respond_msg,
+void HttpGETFileSender::constructGetRespHeader(std::shared_ptr<std::string>& respond_msg,
     std::shared_ptr<RequestContent>& req, std::string& type, const size_t& body_len)
 {
     // 配置报文头版本及返回码
-    respond_msg.append(HttpConst::VERSION_11).append(HttpConst::SP)
+    respond_msg->append(HttpConst::VERSION_11).append(HttpConst::SP)
         .append(HttpConst::STATUS_200).append(HttpConst::CRLF);
     // 配置返回类型
-    respond_msg.append(HttpConst::HEADER_CONTENT_TYPE).append(HttpConst::COLON_SP)
+    respond_msg->append(HttpConst::HEADER_CONTENT_TYPE).append(HttpConst::COLON_SP)
         .append(std::move(type)).append(HttpConst::CRLF);
     // 配置返回长度
-    respond_msg.append(HttpConst::HEADER_CONTENT_LENGTH).append(HttpConst::COLON_SP)
+    respond_msg->append(HttpConst::HEADER_CONTENT_LENGTH).append(HttpConst::COLON_SP)
         .append(std::to_string(body_len)).append(HttpConst::CRLF);
     // 设定是否为keep-alive
-    respond_msg.append(HttpConst::HEADER_CONNECTION).append(HttpConst::COLON_SP);
+    respond_msg->append(HttpConst::HEADER_CONNECTION).append(HttpConst::COLON_SP);
     if (req->keep_alive) {
-        respond_msg.append(HttpConst::CONN_KEEP_ALIVE);
+        respond_msg->append(HttpConst::CONN_KEEP_ALIVE);
     } else {
-        respond_msg.append(HttpConst::CONN_CLOSE);
+        respond_msg->append(HttpConst::CONN_CLOSE);
     }
-    respond_msg.append(HttpConst::CRLF);
+    respond_msg->append(HttpConst::CRLF);
     // 配置空行，代表报文头结束，要配置Body
-    respond_msg.append(HttpConst::CRLF);
+    respond_msg->append(HttpConst::CRLF);
 
     return;
 }
 
-HttpHandleCode HttpGETFileSender::sendMsg(std::shared_ptr<RequestContent>& req, const int& fd)
+HttpHandleCode HttpGETFileSender::sendMsg(std::shared_ptr<TaskPacket>& task)
 {
-    auto type = this->getRespondType(req);
+    auto type = this->getRespondType(task->request_header_);
     if (type == "") {
-        return HttpRouter::get_router().respondNotFound(req, fd);
+        return HttpRouter::get_router().respondNotFound(task);
     }
 
-    std::string file_path = this->SRC_PATH + req->url;
+    std::string file_path = this->SRC_PATH + task->request_header_->url;
     auto file_fd = open(file_path.c_str(), O_RDONLY);
     if (file_fd == -1) {
         LOG_ERR("Client[%d] read path[%s] err. errno[%d] err reason:%s",
-                fd, file_path.c_str(), errno, strerror(errno));
+                task->fd_, file_path.c_str(), errno, strerror(errno));
     }
 
     struct stat st;
     fstat(file_fd, &st);
-    std::string respond_header;
-    this->constructGetRespHeader(respond_header, req, type, st.st_size);
+    auto file_size = st.st_size;
+    auto respond_header = std::make_shared<std::string>();
+    this->constructGetRespHeader(respond_header, task->request_header_, type, file_size);
 
-    // 获取body数据
-    auto addr = mmap(nullptr, st.st_size, PROT_READ, MAP_PRIVATE, file_fd, 0);
+    task->reactor_.lock()->queue_in_loop([file_fd, file_size, task, respond_header]() {
+        // 获取body数据
+        auto addr = mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, file_fd, 0);
 
-    // 发送数据
-    struct iovec iov[2];
-    iov[0].iov_base = respond_header.data();
-    iov[0].iov_len  = respond_header.size();
-    iov[1].iov_base = addr;
-    iov[1].iov_len  = st.st_size;
-    auto ret = writev(fd, iov, 2);
-    if (ret == -1) {
-        LOG_ERR("Client[%d] send back msg failed. ret %d errno %d errmsg %s", fd, ret, errno, strerror(errno));
-        return HttpHandleCode::ERR;
-    }
-    LOG_INFO("Client[%d] send back len %d msg success.", fd, ret);
+        // 发送数据
+        struct iovec iov[2];
+        iov[0].iov_base = respond_header->data();
+        iov[0].iov_len  = respond_header->size();
+        iov[1].iov_base = addr;
+        iov[1].iov_len  = file_size;
+        auto ret = writev(task->fd_, iov, 2);
+        if (ret == -1) {
+            LOG_ERR("Client[%d] send back msg failed. ret %d errno %d errmsg %s", task->fd_, ret, errno, strerror(errno));
+            return EVENT_STATUS::CLIENT_SEND_ERR;
+        }
+        LOG_INFO("Client[%d] send back len %d msg success.", task->fd_, ret);
+        if (!task->request_header_->keep_alive) {
+            task->reactor_.lock()->reset_connection(task->fd_);
+        }
+        munmap(addr, file_size);
+        return EVENT_STATUS::OK;
+    });
     return HttpHandleCode::OK;
 }
 

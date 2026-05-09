@@ -179,8 +179,8 @@ public:
     }
 
     HttpHandleCode regisetr_http_sender(const std::string_view&, std::shared_ptr<HttpSender>);
-    HttpHandleCode respond(std::shared_ptr<RequestContent>&, const int&);
-    HttpHandleCode respondNotFound(std::shared_ptr<RequestContent>&, const int&);
+    HttpHandleCode respond(std::shared_ptr<TaskPacket>&);
+    HttpHandleCode respondNotFound(std::shared_ptr<TaskPacket>&);
 };
 
 // http回送报文构造器，基类为404情况
@@ -193,29 +193,29 @@ protected:
 public:
     HttpSender() = default;
     ~HttpSender() = default;
-    virtual HttpHandleCode constructMsg(std::string&, std::shared_ptr<RequestContent>&);
-    virtual HttpHandleCode sendMsg(std::shared_ptr<RequestContent>&, const int&);
+    virtual HttpHandleCode constructMsg(std::shared_ptr<std::string>&, std::shared_ptr<RequestContent>&);
+    virtual HttpHandleCode sendMsg(std::shared_ptr<TaskPacket>&);
 };
 
 // 对应为GET/ping情况
 class HttpPingSender : public HttpSender {
 public:
     HttpPingSender() = default;
-    HttpHandleCode constructMsg(std::string&, std::shared_ptr<RequestContent>&) override;
+    HttpHandleCode constructMsg(std::shared_ptr<std::string>&, std::shared_ptr<RequestContent>&) override;
 };
 
 // 对应为Post/echo情况
 class HttpEchoSender : public HttpSender {
 public:
     HttpEchoSender() = default;
-    HttpHandleCode constructMsg(std::string&, std::shared_ptr<RequestContent>&) override;
+    HttpHandleCode constructMsg(std::shared_ptr<std::string>&, std::shared_ptr<RequestContent>&) override;
 };
 
 // 对应为400报文错误无法解析的情况
 class HttpFaultSender : public HttpSender {
 public:
     HttpFaultSender() = default;
-    HttpHandleCode constructMsg(std::string&, std::shared_ptr<RequestContent>&) override;
+    HttpHandleCode constructMsg(std::shared_ptr<std::string>&, std::shared_ptr<RequestContent>&) override;
 };
 
 // GET方法在未精确命中的情况下的广义文件搜寻
@@ -224,8 +224,8 @@ private:
     static std::unordered_map<std::string, std::string> respond_type_map_;
     static const std::string SRC_PATH; // 资源文件路径
     std::string getRespondType(std::shared_ptr<RequestContent>&) const;
-    void constructGetRespHeader(std::string&, std::shared_ptr<RequestContent>&, std::string&, const size_t&);
+    void constructGetRespHeader(std::shared_ptr<std::string>&, std::shared_ptr<RequestContent>&, std::string&, const size_t&);
 public:
     HttpGETFileSender() = default;
-    HttpHandleCode sendMsg(std::shared_ptr<RequestContent>&, const int&) override;
+    HttpHandleCode sendMsg(std::shared_ptr<TaskPacket>&) override;
 };

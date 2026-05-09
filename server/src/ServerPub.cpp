@@ -33,6 +33,7 @@ int get_socket_fd(const char* ip, const unsigned short* port) {
         return -1;
     }
     int opt = 1;
+    /* 设置端口复用，允许服务器重启后立即绑定同一端口，避免TIME_WAIT状态导致的绑定失败问题。 */
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     ret = bind(sockfd, static_cast<sockaddr*>(static_cast<void*>(&server_addr)), sizeof(sockaddr_in));
     if (ret == -1) {
@@ -76,7 +77,7 @@ std::shared_ptr<Reactor> tcp_server_main_reactor_register(const int& socket_fd,
     }
     auto epoll_fd = mainReacotr->get_epoll_fd();
 
-    // 客户端连接接收处理器
+    // 客户端连接接收处理器acceptor
     std::shared_ptr<ListenHandler> listen_handler
         = std::make_shared<ListenHandler>(socket_fd, epoll_fd, reactor_pool);
     auto ret = mainReacotr->add_connection(socket_fd, EPOLLIN | EPOLLET, listen_handler);
@@ -113,12 +114,7 @@ EVENT_STATUS task_handle(std::shared_ptr<TaskPacket> task)
     
     
     // 发送响应报文
-    HttpRouter::get_router().respond(task->request_header_, task->fd_);
-    
-    // 非Keep-Alive用完即关
-    if (!task->request_header_->keep_alive) {
-        task->reactor_.lock()->reset_connection(task->fd_);
-    }
+    HttpRouter::get_router().respond(task);
     
     return EVENT_STATUS::OK;
 }
