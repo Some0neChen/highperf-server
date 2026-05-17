@@ -43,6 +43,10 @@ int main(int argc, char* argv[]) {
     //     exit(EXIT_FAILURE);
     // }
 
+    // Http解析状态机及响应报文构造器挂接
+    init_http_parse_fsm();
+    HttpRouteAttach();
+
     // 线程池、缓冲池、任务池初始化
     shared_ptr<ThreadPool<function<EVENT_STATUS()>>> threadPool =
         make_shared<ThreadPool<function<EVENT_STATUS()>>>(16);
@@ -50,14 +54,10 @@ int main(int argc, char* argv[]) {
     // TCP层主副Reactor初始化及挂接
     auto ret = tcp_server_main_reactor_register(socket_fd, threadPool);
 
-    // Http解析状态机及响应报文构造器挂接
-    init_http_parse_fsm();
-    HttpRouteAttach();
-
     // 维持主线程不挂
     while (server_running.load()) {
         usleep(100000);
     }
 
-    exit(EXIT_SUCCESS);
+    return EXIT_SUCCESS;
 }

@@ -1,5 +1,7 @@
 #include "EventHandler.h"
+#include "HttpContext.h"
 #include "HttpModule.h"
+#include "Logger.h"
 #include "ServerPub.h"
 #include <arpa/inet.h>
 #include <cerrno>
@@ -7,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
+#include <functional>
 #include <memory>
 #include <netinet/in.h>
 #include <sys/epoll.h>
@@ -47,7 +50,7 @@ EVENT_STATUS ListenHandler::handle_event(unsigned int state)
             }
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 LOG_INFO("Listen fd[%d] accept client over.", this->fd_);
-                break;;
+                break;
             }
             LOG_INFO("Listen fd[%d] occur readding failed. errorno[%d]", this->fd_, errno);
             return EVENT_STATUS::CLIENT_READ_ERR;
@@ -61,15 +64,21 @@ EVENT_STATUS ListenHandler::handle_event(unsigned int state)
             return reactor->add_connection(client_fd, listen_state, std::make_shared<ClientHandler>(client_fd, reactor));
         });
     }
-    return EVENT_STATUS::OK;;
+    return EVENT_STATUS::OK;
 }
 
 ClientHandler::ClientHandler(const int& fd, std::shared_ptr<Reactor>& reactor)
     : EventHandler(fd),
       reactor_(reactor),
       buffer_(std::make_shared<RequestBuffer<char>>()),
-      request_packet_(this->buffer_),
-      version_no(0)
+      version_no(0),
+      http_context_(buffer_, [this](const size_t& seq, std::shared_ptr<RequestContent>& req) {
+        return this->on_request_ready(seq, req);
+      }),
+      pending_output_bytes_(0),
+      is_blocking_(false),
+      closed_wait_(false),
+      current_events_(EPOLLIN | EPOLLET | EPOLLRDHUP)
 {
     if (fcntl(this->fd_, F_SETFL, O_NONBLOCK) < 0) {
         LOG_ERR("Client fd[%d] set O_NONBLOCK mode err.", this->fd_);
@@ -77,23 +86,18 @@ ClientHandler::ClientHandler(const int& fd, std::shared_ptr<Reactor>& reactor)
     this->update_expire_time();
 }
 
-EVENT_STATUS ClientHandler::handle_event(unsigned int state)
+int ClientHandler::get_fd() const {
+    return fd_;
+}
+
+unsigned int ClientHandler::get_version_no() const
 {
-    LOG_INFO("Client fd[%d] readding begain.", this->fd_);
+    return version_no.load();
+}
+
+EVENT_STATUS ClientHandler::ClientHandleRequest()
+{
     auto reactor_ptr = this->reactor_.lock();
-    if (reactor_ptr == nullptr) {
-        LOG_ERR("Client fd[%d] get reactor failed. The reactor is already released.", this->fd_);
-        return EVENT_STATUS::CLIENT_UNBIND_REACTOR_ERR;
-    }
-    if (state & EPOLLRDHUP) { // 客户端退出
-        LOG_INFO("Client fd[%d] closed connection.", this->fd_);
-        reactor_ptr->reset_connection(this->fd_);
-        return EVENT_STATUS::OK;
-    }
-    if (!(state & EPOLLIN)) { // 不处理非读事件
-        LOG_ERR("Undefined epoll behavior. fd[%d].", this->fd_);
-        return EVENT_STATUS::EPOLL_UNDEFINE_TRIG;
-    }
     while (true) {
         // 采用readv分散读的方式，先将数据读入缓冲区剩余空间，如果数据长度超过剩余空间，则将溢出部分读入extra_buf中
         iovec read_vec[2];
@@ -105,11 +109,11 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
         // len不能用size_t，因为size_t本质是无符号数，没有-1
         ssize_t len = readv(this->fd_, read_vec, 2); 
 
-        // 客户端退出
+        // 读取到FIN报文
         if (len == 0) {
             LOG_INFO("Client fd[%d] closed connection.", this->fd_);
-            reactor_ptr->reset_connection(this->fd_);
-            return EVENT_STATUS::OK;
+            closed_wait_ = true;
+            break;
         }
 
         // 已读完或者发生错误
@@ -130,40 +134,156 @@ EVENT_STATUS ClientHandler::handle_event(unsigned int state)
         buffer_->update_write_pos(len, extra_buf);
         LOG_INFO("Epoll[%d] Client fd[%d] receive msg success, len %u", reactor_ptr->get_epoll_fd(), this->fd_, len);
     }
-    ParseResult parse_ret;
-    std::shared_ptr<TaskPacket> packet;
-    while ((parse_ret = HttpFsmManager::get_fsm().fsm_excute( this->request_packet_)) == ParseResult::COMPLETE) {
-        // 解析请求报文成功，构造任务包并加入线程池
-        // 在线程池中完成响应报文的构造
-        auto request_header = this->request_packet_.pop_content();
-        packet = std::make_shared<TaskPacket>(request_header, this->reactor_, this->fd_);
-        reactor_ptr->thread_pool_->add_task([packet](){
-            LOG_INFO("fd[%d] push task into http thread queue.", packet->fd_);
-            return task_handle(packet);
-        });
+    http_context_.HttpParseInput();
+    return EVENT_STATUS::OK;
+}
+
+EVENT_STATUS ClientHandler::handle_event(unsigned int state)
+{
+    LOG_INFO("Client fd[%d] readding begain.", this->fd_);
+    auto reactor_ptr = this->reactor_.lock();
+    if (reactor_ptr == nullptr) {
+        LOG_ERR("Client fd[%d] get reactor failed. The reactor is already released.", this->fd_);
+        return EVENT_STATUS::CLIENT_UNBIND_REACTOR_ERR;
     }
-    // 错包场景
-    if (parse_ret == ParseResult::ERROR) {
-        packet = std::make_shared<TaskPacket>(std::make_shared<RequestContent>(), this->reactor_, this->fd_);
-        packet->request_header_->method = HttpRespond::PARSE_FAULT;
-        packet->request_header_->keep_alive = false;
-        HttpRouter::get_router().respond(packet);
+
+    if (state & (EPOLLERR | EPOLLHUP)) {
+        LOG_INFO("Client fd[%d] closed connection. Exception event occur.", this->fd_);
+        this->reactor_.lock()->reset_connection(fd_);
+        return EVENT_STATUS::EPOLL_UNDEFINE_TRIG;
+    }
+
+    if (state & EPOLLRDHUP) { // 客户端已发送FIN
+        closed_wait_ = true;
+    }
+    if (state & EPOLLIN) {
+        auto ret = ClientHandleRequest();
+        if (ret != EVENT_STATUS::OK) {
+            LOG_INFO("Client fd[%d] closed connection. read err. errono %d", this->fd_, errno);
+            this->reactor_.lock()->reset_connection(fd_);
+            return ret;
+        }
+    }
+    if (state & EPOLLOUT) {
+        on_response_ready();
+    }
+
+    if (closed_wait_ && http_context_.all_response_done()) {
+        LOG_INFO("Client fd[%d] closed connection.", this->fd_);
+        reactor_ptr->reset_connection(this->fd_);
         return EVENT_STATUS::OK;
     }
-    
+
     this->update_expire_time();
     return EVENT_STATUS::OK;
 }
 
-void ClientHandler::update_expire_time() {
+void ClientHandler::update_expire_time()
+{
     this->version_no.fetch_add(1);
     auto expired_time = std::chrono::steady_clock::now() + std::chrono::seconds(SPECS_VALUE::WEB_SERVER_TIMER_INTERVAL);
     this->reactor_.lock()->add_timer_task(this->fd_, this->get_version_no(), expired_time);
 }
 
-void ClientHandler::update_expire_time(const std::chrono::steady_clock::time_point& time_point) {
+void ClientHandler::update_expire_time(const std::chrono::steady_clock::time_point& time_point)
+{
     this->version_no.fetch_add(1);
     this->reactor_.lock()->add_timer_task(this->fd_, this->get_version_no(), time_point);
+}
+
+void ClientHandler::queue_task_in_reactor(std::function<EVENT_STATUS()> task)
+{
+    this->reactor_.lock()->queue_in_loop(task);
+}
+
+void ClientHandler::on_request_ready(const size_t& seq, std::shared_ptr<RequestContent>& content)
+{
+    LOG_INFO("Client fd[%d] request ready. seq [%zu], method [%s], url [%s], version [%s], content_length [%zu]",
+        this->fd_, seq, content->method.c_str(), content->url.c_str(), content->version.c_str(), content->content_length);
+    std::shared_ptr<HttpRequestTask> task = std::make_shared<HttpRequestTask>(content, weak_from_this(), seq);
+    reactor_.lock()->thread_pool_->add_task([task] () mutable -> EVENT_STATUS {
+        HttpRouter::get_router().respond(task);
+        return EVENT_STATUS::OK;
+    });
+    return;
+}
+
+void ClientHandler::on_response_ready()
+{
+    std::shared_ptr<OutgoingResponse> responsing_task;
+    unsigned int conn_state = current_events_;
+    while ((responsing_task = http_context_.get_response_in_queue()) != nullptr) {
+        conn_state = EPOLLRDHUP | EPOLLET;
+
+        auto write_result = responsing_task->wirteToSocket(this->fd_);
+        if (write_result == TCPWriteResult::ERROR) {
+            LOG_ERR("Client fd[%d] write response to socket failed. seq [%zu]", this->fd_, responsing_task->response_id_);
+            this->reactor_.lock()->reset_connection(fd_);
+            return;
+        }
+
+        if (write_result == TCPWriteResult::PARTIAL) {
+            conn_state |= EPOLLOUT;
+            break;
+        }
+        // 剩下的为返回TCPWriteResult::COMPLETE处理逻辑
+        pending_output_bytes_ -= responsing_task->written_bytes_;
+        http_context_.update_response_queue();
+        if (!responsing_task->keep_alive_) {
+            // 处理到非KeepAlive报文时不必再处理反压和状态刷新
+            LOG_INFO("Client fd[%d] write response to socket complete and no keep alive. seq [%zu]",
+                this->fd_, responsing_task->response_id_);
+            this->reactor_.lock()->reset_connection(this->fd_);
+            return;
+        }
+    }
+    apply_backpressure(conn_state);
+    update_epoll_events(conn_state);
+}
+
+void ClientHandler::on_response_ready(std::shared_ptr<OutgoingResponse>& response)
+{
+    auto ret = http_context_.push_response_in_queue(response);
+    if (ret != EVENT_STATUS::OK) {
+        LOG_ERR("Client fd[%d] push response in queue failed. response id [%zu].",
+            this->fd_, response->response_id_);
+        return;
+    }
+    LOG_INFO("Client fd[%d] response ready. seq [%zu], push response in queue result [%d]",
+        this->fd_, response->response_id_, ret);
+    this->pending_output_bytes_ += response->pending_write_bytes_;
+    return on_response_ready();
+}
+
+EVENT_STATUS ClientHandler::update_epoll_events(const unsigned int& state)
+{
+    if (state == current_events_) {
+        return EVENT_STATUS::OK;
+    }
+    current_events_ = state;
+    return reactor_.lock()->tcp_set_connection_state(state, fd_);
+}
+
+void ClientHandler::apply_backpressure(unsigned int& conn_state)
+{
+    // 是否开启EPOLLIN当前只由反压机制决定
+    // 超过反压水线，触发阻塞
+    if (pending_output_bytes_ >= SPECS_VALUE::TCP_BLOCK_LINE && !is_blocking_) {
+        LOG_INFO("Client fd[%d] enter traffic backpressing. wait_writting_bytes [%zu].",
+            this->fd_, pending_output_bytes_);
+        is_blocking_ = true;
+    }
+    // 低于反压水线，解除阻塞
+    if (pending_output_bytes_ < SPECS_VALUE::TCP_UNBLOCK_LINE && is_blocking_) {
+        LOG_INFO("Client fd[%d] relieve traffic backpressing. wait_writting_bytes [%zu].",
+            this->fd_, pending_output_bytes_);
+        is_blocking_ = false;
+    }
+
+    if (!is_blocking_) {
+        conn_state |= EPOLLIN;
+    }
+    return;
 }
 
 TimerHandler::TimerHandler(Reactor* reactor)

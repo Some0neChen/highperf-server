@@ -28,18 +28,19 @@ namespace HttpConst {
     constexpr std::string_view VERSION_11 = "HTTP/1.1";
 
     // 请求头 key（统一小写，解析时 key 转小写后比较）
-    constexpr std::string_view HEADER_CONTENT_LENGTH = "content-length";
-    constexpr std::string_view HEADER_CONTENT_TYPE   = "content-type";
-    constexpr std::string_view HEADER_CONNECTION      = "connection";
-    constexpr std::string_view HEADER_HOST            = "host";
+    constexpr std::string_view HEADER_CONTENT_LENGTH    = "content-length";
+    constexpr std::string_view HEADER_CONTENT_TYPE      = "content-type";
+    constexpr std::string_view HEADER_CONNECTION        = "connection";
+    constexpr std::string_view HEADER_HOST              = "host";
 
     // Connection 头的值
     constexpr std::string_view CONN_KEEP_ALIVE = "keep-alive";
     constexpr std::string_view CONN_CLOSE      = "close";
 
     // 常用路径
-    constexpr std::string_view PATH_PING = "/ping";
-    constexpr std::string_view PATH_ECHO = "/echo";
+    constexpr std::string_view PATH_PING    = "/ping";
+    constexpr std::string_view PATH_ECHO    = "/echo";
+    constexpr std::string_view PATH_ERR     = "/err";
 
     // 响应状态
     constexpr std::string_view STATUS_200 = "200 OK";
@@ -64,7 +65,7 @@ namespace HttpRespond {
     // 未找到
     constexpr std::string_view NOT_FOUND = "HTTP/1.1 Not Found";
     // Parse Err
-    constexpr std::string_view PARSE_FAULT = "PARSE_FAULT";
+    constexpr std::string_view PARSE_FAULT = "GET /err";
     // GET Ping
     constexpr std::string_view GET_PING = "GET /ping";
     // Post Echo
@@ -77,14 +78,6 @@ namespace HttpTokens {
     constexpr uint32_t kHeaderEnd   = 0x0A0D0A0D;       // "\r\n\r\n"
     constexpr uint16_t kHeaderSep   = 0x203A;           // ": "
 }
-
-enum class ParseState {
-    REQUEST_LINE,
-    HEADERS,
-    BODY,
-    COMPLETE,
-    ERROR
-};
 
 enum class ParseResult {
     INCOMPLETE,  // 数据不够，等下次
@@ -105,8 +98,10 @@ enum class FSMState {
 enum class HttpHandleCode {
     OK = 0,
     ERR,
+    TCP_CLOSED,
     REGISER_HANDLER_ERR,
     RESPOND_TYPE_REPEATED,
+    FILE_NOT_FOUND,
     END
 };
 
@@ -152,7 +147,7 @@ public:
     static HttpFsmManager& get_fsm() {
         static HttpFsmManager fsm;
         return fsm;
-    }
+    };
 
     // 根据状态和处理函数，注册新的状态机事件
     HttpHandleCode register_fsm_handler(const FSMState&, const StateHandler&);
@@ -161,26 +156,27 @@ public:
 };
 
 class HttpSender;
+class OutgoingResponse;
 // 路由规则处理器，根据报文的method和url进行处理，获取对应的body，以及返回状态码
 class HttpRouter {
     // 通过sender函数，传入RequestContent，获取对应的处理类HttpSender
-    std::unordered_map<std::string_view, std::shared_ptr<HttpSender>> router_;
+    std::unordered_map<std::string_view, std::unique_ptr<HttpSender>> router_;
     HttpRouter() = default;
     HttpRouter(const HttpRouter&) = delete;
     HttpRouter(HttpRouter&&) = delete;
     HttpRouter& operator=(const HttpRouter&) = delete;
     HttpRouter& operator=(HttpRouter&&) = delete;
     ~HttpRouter() = default;
-    std::shared_ptr<HttpSender> default_sender_;
 public:
     static HttpRouter& get_router() {
         static HttpRouter router;
         return router;
     }
 
-    HttpHandleCode regisetr_http_sender(const std::string_view&, std::shared_ptr<HttpSender>);
-    HttpHandleCode respond(std::shared_ptr<TaskPacket>&);
-    HttpHandleCode respondNotFound(std::shared_ptr<TaskPacket>&);
+    HttpHandleCode regisetr_http_sender(const std::string_view&, std::unique_ptr<HttpSender>);
+    std::shared_ptr<OutgoingResponse> get_response(std::shared_ptr<HttpRequestTask>&);
+    std::shared_ptr<OutgoingResponse> get_unfound_response(std::shared_ptr<HttpRequestTask>&);
+    HttpHandleCode respond(std::shared_ptr<HttpRequestTask>&);
 };
 
 // http回送报文构造器，基类为404情况
@@ -193,39 +189,39 @@ protected:
 public:
     HttpSender() = default;
     ~HttpSender() = default;
-    virtual HttpHandleCode constructMsg(std::shared_ptr<std::string>&, std::shared_ptr<RequestContent>&);
-    virtual HttpHandleCode sendMsg(std::shared_ptr<TaskPacket>&);
+    virtual std::shared_ptr<OutgoingResponse> contructRespTaskPack(std::shared_ptr<HttpRequestTask>&);
 };
 
 // 对应为GET/ping情况
 class HttpPingSender : public HttpSender {
 public:
     HttpPingSender() = default;
-    HttpHandleCode constructMsg(std::shared_ptr<std::string>&, std::shared_ptr<RequestContent>&) override;
+    std::shared_ptr<OutgoingResponse> contructRespTaskPack(std::shared_ptr<HttpRequestTask>&) override;
 };
 
 // 对应为Post/echo情况
 class HttpEchoSender : public HttpSender {
 public:
     HttpEchoSender() = default;
-    HttpHandleCode constructMsg(std::shared_ptr<std::string>&, std::shared_ptr<RequestContent>&) override;
+    std::shared_ptr<OutgoingResponse> contructRespTaskPack(std::shared_ptr<HttpRequestTask>&) override;
 };
 
 // 对应为400报文错误无法解析的情况
 class HttpFaultSender : public HttpSender {
 public:
     HttpFaultSender() = default;
-    HttpHandleCode constructMsg(std::shared_ptr<std::string>&, std::shared_ptr<RequestContent>&) override;
+    std::shared_ptr<OutgoingResponse> contructRespTaskPack(std::shared_ptr<HttpRequestTask>&) override;
 };
 
+class MmapFileResponse;
 // GET方法在未精确命中的情况下的广义文件搜寻
 class HttpGETFileSender : public HttpSender {
-private:
     static std::unordered_map<std::string, std::string> respond_type_map_;
     static const std::string SRC_PATH; // 资源文件路径
     std::string getRespondType(std::shared_ptr<RequestContent>&) const;
-    void constructGetRespHeader(std::shared_ptr<std::string>&, std::shared_ptr<RequestContent>&, std::string&, const size_t&);
+    void constructGetRespHeader(std::shared_ptr<MmapFileResponse>&,
+        std::shared_ptr<RequestContent>&, std::string&);
 public:
     HttpGETFileSender() = default;
-    HttpHandleCode sendMsg(std::shared_ptr<TaskPacket>&) override;
+    std::shared_ptr<OutgoingResponse> contructRespTaskPack(std::shared_ptr<HttpRequestTask>&) override;
 };

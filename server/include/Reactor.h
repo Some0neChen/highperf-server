@@ -25,7 +25,26 @@
 
 class Reactor
 {
+public:
     using reactor_task = std::function<EVENT_STATUS()>;
+
+    Reactor(std::shared_ptr<ThreadPool<std::function<EVENT_STATUS()>>>&);
+    ~Reactor();
+    Reactor(const Reactor&) = delete;
+    Reactor(Reactor&&) = delete;
+    Reactor& operator=(const Reactor&) = delete;
+    Reactor& operator=(const Reactor&&) = delete;
+
+    void reset_connection(const int&);
+    void timer_reset_batch_conns(const std::shared_ptr<std::vector<std::pair<int, unsigned int>>>&);
+    void add_timer_task(const int &fd, const unsigned int &version_no, const std::chrono::steady_clock::time_point &time_point);
+    EVENT_STATUS add_connection(const int&, unsigned int, std::shared_ptr<EventHandler>);
+    int get_epoll_fd() const;
+    EVENT_STATUS queue_in_loop(reactor_task);
+    EVENT_STATUS run_in_loop(reactor_task);
+    
+    EVENT_STATUS tcp_set_connection_state(const unsigned int&, const int&);
+private:
     std::shared_ptr<ThreadPool<std::function<EVENT_STATUS()>>> thread_pool_;
     std::unordered_map<int, std::shared_ptr<EventHandler>> connections_;
     std::queue<reactor_task, std::deque<reactor_task>> pending_tasks_;
@@ -52,19 +71,4 @@ class Reactor
     friend class ClientHandler;
     friend class ListenHandler;
     friend class TimerHandler;
-public:
-    Reactor(std::shared_ptr<ThreadPool<std::function<EVENT_STATUS()>>>&);
-    ~Reactor();
-    Reactor(const Reactor&) = delete;
-    Reactor(Reactor&&) = delete;
-    Reactor& operator=(const Reactor&) = delete;
-    Reactor& operator=(const Reactor&&) = delete;
-
-    void reset_connection(const int&);
-    void timer_reset_batch_conns(const std::shared_ptr<std::vector<std::pair<int, unsigned int>>>&);
-    void add_timer_task(const int &fd, const unsigned int &version_no, const std::chrono::steady_clock::time_point &time_point);
-    EVENT_STATUS add_connection(const int&, unsigned int, std::shared_ptr<EventHandler>);
-    int get_epoll_fd() const;
-    EVENT_STATUS queue_in_loop(reactor_task);
-    EVENT_STATUS run_in_loop(reactor_task);
 };

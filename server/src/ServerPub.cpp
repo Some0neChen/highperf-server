@@ -7,16 +7,13 @@
 #include "Logger.h"
 #include <arpa/inet.h>
 #include <cerrno>
+#include <cstdlib>
 #include <sys/epoll.h>
 #include <unistd.h>
 #include <functional>
 #include <memory>
 #include <vector>
 #include "Reactor.h"
-
-void http_parse() {
-    // TODO
-}
 
 int get_socket_fd(const char* ip, const unsigned short* port) {
     auto sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -80,41 +77,41 @@ std::shared_ptr<Reactor> tcp_server_main_reactor_register(const int& socket_fd,
     // 客户端连接接收处理器acceptor
     std::shared_ptr<ListenHandler> listen_handler
         = std::make_shared<ListenHandler>(socket_fd, epoll_fd, reactor_pool);
-    auto ret = mainReacotr->add_connection(socket_fd, EPOLLIN | EPOLLET, listen_handler);
+    mainReacotr->queue_in_loop([mainReacotr, listen_handler, socket_fd]() {
+        auto ret =  mainReacotr->add_connection(socket_fd, EPOLLIN | EPOLLET, listen_handler);
+        if (ret != EVENT_STATUS::OK) {
+            LOG_ERR("MAIN REACTOR LISTEN IPADDR FAILED!!!");
+            exit(EXIT_FAILURE);
+        }
+        return ret;
+    });
 
-    if (ret != EVENT_STATUS::OK) {
-        return nullptr;
-    }
     return mainReacotr;
 }
 
-EVENT_STATUS task_handle(std::shared_ptr<TaskPacket> task)
-{
-    LOG_INFO("[%s]task_handle fd[%d] begin", __func__, task->fd_);
-
-    LOG_INFO("-----------------------------------------------------------"
-             "ClientHandler[%d] parse http requst info:\r\n"
-             "Method: %s\r\n"
-             "URL: %s\r\n"
-             "Version: %s\r\n"
-             "Keep-Alive: %s\r\n"
-             "Content-Length: %u\r\n",
-             task->fd_, task->request_header_->method.c_str(),
-             task->request_header_->url.c_str(),
-             task->request_header_->version.c_str(),
-             task->request_header_->keep_alive ? "true" : "false",
-             task->request_header_->content_length);
-    LOG_INFO("Header:");
-    for (auto it = task->request_header_->headers.begin(); it != task->request_header_->headers.end(); ++it) {
-        LOG_INFO("%s: %s", it->first.c_str(), it->second.c_str());
-    }
-    LOG_INFO("Body: \r\n"
-             "%s\r\n"
-             "-----------------------------------------------------------", task->request_header_->body.c_str());
-    
-    
-    // 发送响应报文
-    HttpRouter::get_router().respond(task);
-    
-    return EVENT_STATUS::OK;
-}
+// EVENT_STATUS task_handle(std::shared_ptr<HttpRequestTask> task)
+// {
+//     LOG_INFO("[%s]task_handle fd[%d] begin", __func__, task->fd_);
+//     LOG_INFO("-----------------------------------------------------------"
+//              "ClientHandler[%d] parse http requst info:\r\n"
+//              "Method: %s\r\n"
+//              "URL: %s\r\n"
+//              "Version: %s\r\n"
+//              "Keep-Alive: %s\r\n"
+//              "Content-Length: %u\r\n",
+//              task->fd_, task->request_header_->method.c_str(),
+//              task->request_header_->url.c_str(),
+//              task->request_header_->version.c_str(),
+//              task->request_header_->keep_alive ? "true" : "false",
+//              task->request_header_->content_length);
+//     LOG_INFO("Header:");
+//     for (auto it = task->request_header_->headers.begin(); it != task->request_header_->headers.end(); ++it) {
+//         LOG_INFO("%s: %s", it->first.c_str(), it->second.c_str());
+//     }
+//     LOG_INFO("Body: \r\n"
+//              "%s\r\n"
+//              "-----------------------------------------------------------", task->request_header_->body.c_str());
+//     // 发送响应报文
+//     HttpRouter::get_router().respond(task);
+//     return EVENT_STATUS::OK;
+// }
