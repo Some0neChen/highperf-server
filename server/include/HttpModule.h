@@ -175,7 +175,10 @@ public:
 
     HttpHandleCode regisetr_http_sender(const std::string_view&, std::unique_ptr<HttpSender>);
     std::shared_ptr<OutgoingResponse> get_response(std::shared_ptr<HttpRequestTask>&);
+    // 404
     std::shared_ptr<OutgoingResponse> get_unfound_response(std::shared_ptr<HttpRequestTask>&);
+    // 400
+    std::shared_ptr<OutgoingResponse> get_badrequest_response(std::shared_ptr<HttpRequestTask>&);
     HttpHandleCode respond(std::shared_ptr<HttpRequestTask>&);
 };
 

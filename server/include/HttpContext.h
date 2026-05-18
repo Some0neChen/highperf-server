@@ -3,6 +3,7 @@
 #include <bits/types/struct_iovec.h>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 #include "HttpModule.h"
@@ -37,6 +38,14 @@ enum class TCPWriteResult {
     ERROR
 };
 
+struct StringResponseSpec {
+    std::string_view version_;
+    std::string_view status_;
+    std::string_view content_type_;
+    size_t body_len_;
+    bool keep_alive_;
+};
+
 class OutgoingResponse {
 public:
     size_t response_id_;
@@ -46,9 +55,13 @@ public:
     
     OutgoingResponse() : response_id_(0), written_bytes_(0), pending_write_bytes_(0) {}
     OutgoingResponse(const size_t& no) : response_id_(no), written_bytes_(0), pending_write_bytes_(0) {}
-    
-    virtual TCPWriteResult wirteToSocket(const int& fd) = 0;
     virtual ~OutgoingResponse() = default;
+
+    virtual TCPWriteResult wirteToSocket(const int& fd) = 0;
+    void append_common_headers(const StringResponseSpec&);
+protected:
+    
+    virtual OutgoingResponse& append(const std::string_view&) = 0;
 };
 
 class StringResponse : public OutgoingResponse{
@@ -56,7 +69,7 @@ class StringResponse : public OutgoingResponse{
 public:
     StringResponse(const size_t& no);
     StringResponse& append(std::string&&);
-    StringResponse& append(const std::string_view&);
+    StringResponse& append(const std::string_view&) override;
     virtual TCPWriteResult wirteToSocket(const int& fd) override;
     virtual ~StringResponse() = default;
 };
@@ -70,7 +83,7 @@ class MmapFileResponse : public OutgoingResponse {
     friend class HttpGETFileSender;
 public:
     MmapFileResponse(const size_t& no) : heder_size_(0), mmap_addr_(nullptr), file_size_(0), OutgoingResponse(no) {}
-    MmapFileResponse& append(const std::string_view&);
+    MmapFileResponse& append(const std::string_view&) override;
     virtual TCPWriteResult wirteToSocket(const int& fd) override;
     virtual ~MmapFileResponse() override;
 };

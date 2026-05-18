@@ -12,8 +12,9 @@
 *.pch
 
 # server_src
-src/
+/src/
 diaglog/
+/temp/
 
 # document
 *.md
