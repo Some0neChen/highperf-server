@@ -1,20 +1,24 @@
 #pragma once
 
 #include "Logger.h"
-#include "ServerPub.h"
 #include <algorithm>
 #include <pthread.h>
 #include <semaphore.h>
 #include <sys/socket.h>
 #include <vector>
 
+namespace BUFFER_SPEC {
+    constexpr size_t STANDARD_BUF_INIT_SIZE = 4096;
+    constexpr size_t HUG_MSG_BUFFER_SIZE = 64 * 1024;
+}
+
 template <typename T>
-class RequestBuffer
+class Buffer
 {
 public:
     using BUF_SIZE = typename std::vector<T>::size_type;
-    RequestBuffer() : write_pos_(0), read_pos_(0) {
-        buffer_.resize(SPECS_VALUE::STANDARD_REQUEST_BUF_SIZE);
+    Buffer() : write_pos_(0), read_pos_(0) {
+        buffer_.resize(BUFFER_SPEC::STANDARD_BUF_INIT_SIZE);
     }
 
     BUF_SIZE writable_size() const {
@@ -82,10 +86,10 @@ private:
     BUF_SIZE write_pos_;
     BUF_SIZE read_pos_;
 
-    RequestBuffer(const RequestBuffer&) = delete;
-    RequestBuffer(RequestBuffer&&) = delete;
-    RequestBuffer& operator=(const RequestBuffer&) = delete;
-    RequestBuffer& operator=(RequestBuffer&&) = delete;
+    Buffer(const Buffer&) = delete;
+    Buffer(Buffer&&) = delete;
+    Buffer& operator=(const Buffer&) = delete;
+    Buffer& operator=(Buffer&&) = delete;
 
     void pos_reset() {
         if (read_pos_ == write_pos_) {
@@ -98,14 +102,14 @@ private:
     // 如果当前内存超出64KB，且可读内存在4KB之内
     // 那么进行对应的缩容操作
     void shrink_buffer() {
-        if (buffer_.size() < SPECS_VALUE::HUG_MSG_BUFFER_SIZE) {
+        if (buffer_.size() < BUFFER_SPEC::HUG_MSG_BUFFER_SIZE) {
             return;
         }
-        if (readable_size() >= SPECS_VALUE::STANDARD_REQUEST_BUF_SIZE) {
+        if (readable_size() >= BUFFER_SPEC::STANDARD_BUF_INIT_SIZE) {
             return;
         }
         std::vector<T> new_buf = std::vector<T>(buffer_.begin() + read_pos_, buffer_.begin() + write_pos_);
-        new_buf.resize(SPECS_VALUE::STANDARD_REQUEST_BUF_SIZE);
+        new_buf.resize(BUFFER_SPEC::STANDARD_BUF_INIT_SIZE);
         write_pos_ = write_pos_ - read_pos_;
         read_pos_ = 0;
         buffer_.swap(new_buf);
