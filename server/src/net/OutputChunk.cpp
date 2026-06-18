@@ -23,6 +23,14 @@ StringChunk& StringChunk::append(const std::string_view& data)
     return *this;
 }
 
+StringChunk& StringChunk::append(char* data)
+{
+    auto size = response_data_.size();
+    response_data_.append(data);
+    pending_write_bytes_ += (response_data_.size() - size);
+    return *this;
+}
+
 WriteOutCome StringChunk::writeToSocket(const int& fd)
 {
     ssize_t write_len = 0;

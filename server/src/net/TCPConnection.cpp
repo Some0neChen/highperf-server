@@ -86,6 +86,11 @@ void TCPConnection::set_context(std::shared_ptr<void> context)
     context_ = std::move(context);
 }
 
+void TCPConnection::set_timer_enable(bool state)
+{
+    timer_enable_ = state;
+}
+
 void TCPConnection::shutdown()
 {
     if (channel_.get_event() & EPOLLIN) {
@@ -115,6 +120,9 @@ void TCPConnection::force_close()
 
 void TCPConnection::update_expired_time()
 {
+    if (!timer_enable_) {
+        return;
+    }
     ++version_;
     auto cur_version = version_;
     auto expire_time = std::chrono::steady_clock::now() + std::chrono::seconds(TIMER_SPEC::SERVER_INTERVAL);

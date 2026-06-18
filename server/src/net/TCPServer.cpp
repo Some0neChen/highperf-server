@@ -1,11 +1,25 @@
 #include "TCPServer.h"
 #include "Acceptor.h"
 #include "EventLoop.h"
+#include "Logger.h"
 #include "TCPConnection.h"
 #include "Timer.h"
+#include <cstdlib>
 #include <functional>
 #include <memory>
 #include <utility>
+
+void TCPServer::spec_set(const ushort& bit, bool enable)
+{
+    if (bit > 5) {
+        LOG_ERR("TCPServer spec oversize.");
+        exit(EXIT_FAILURE);
+    }
+    REACTOR_POOL_SIZE_ = 0x1 << bit;
+    ROBIN_MASK_ = REACTOR_POOL_SIZE_ - 1;
+    connection_timer_enable_ = enable;
+    return;
+}
 
 void TCPServer::start(const char* ipaddr, const char* port)
 {
@@ -22,16 +36,16 @@ void TCPServer::start(const char* ipaddr, const char* port)
     acceptor_->attach_loop(this->main_loop_.get());
     
     // 初始化定时器数组，每个定时器下标对应一个EventLoop
-    robin_loop_timer_.reserve(TCPSERVER_SPEC::REACTOR_POOL_SIZE);
-    robin_loop_timer_.resize(TCPSERVER_SPEC::REACTOR_POOL_SIZE);
-    for (auto idx = 0; idx < TCPSERVER_SPEC::REACTOR_POOL_SIZE; ++idx) {
+    robin_loop_timer_.reserve(REACTOR_POOL_SIZE_);
+    robin_loop_timer_.resize(REACTOR_POOL_SIZE_);
+    for (auto idx = 0; idx < REACTOR_POOL_SIZE_; ++idx) {
         robin_loop_timer_[idx] = std::make_shared<Timer>();
     }
 
     // 初始化EventLoop轮询数组
-    robin_loop_.reserve(TCPSERVER_SPEC::REACTOR_POOL_SIZE);
-    robin_loop_.resize(TCPSERVER_SPEC::REACTOR_POOL_SIZE);
-    for (auto idx = 0; idx < TCPSERVER_SPEC::REACTOR_POOL_SIZE; ++idx) {
+    robin_loop_.reserve(REACTOR_POOL_SIZE_);
+    robin_loop_.resize(REACTOR_POOL_SIZE_);
+    for (auto idx = 0; idx < REACTOR_POOL_SIZE_; ++idx) {
         robin_loop_[idx] = std::make_unique<EventLoop>();
         robin_loop_timer_[idx]->attach_loop(robin_loop_[idx].get());
     }
@@ -77,7 +91,7 @@ void TCPServer::channel_remove(int conn_idx)
 void TCPServer::channel_dispatch(const int& fd)
 {
     fcntl(fd , F_SETFL, O_NONBLOCK);
-    auto selected_epoll_idx = robin_idx_ & TCPSERVER_SPEC::ROBIN_MASK;
+    auto selected_epoll_idx = robin_idx_ & ROBIN_MASK_;
     auto selected_loop = robin_loop_[selected_epoll_idx].get();
     auto selected_timer = robin_loop_timer_[selected_epoll_idx];
     auto [it, res] =  conn_manager_.try_emplace(this->robin_idx_, std::make_shared<TCPConnection>(fd, selected_loop));
@@ -87,6 +101,7 @@ void TCPServer::channel_dispatch(const int& fd)
     }
     auto r_idx = robin_idx_;
     selected_loop->queue_in_loop([this, conn, selected_timer, r_idx]() {
+        conn->set_timer_enable(connection_timer_enable_);
         conn->set_timer_refresh_callback_([selected_timer](std::chrono::steady_clock::time_point time, std::function<void()> task)  {
             selected_timer->add_timer(time, std::move(task));
         });

@@ -5,19 +5,18 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <sys/types.h>
 #include <unordered_map>
 #include <vector>
 #include "TCPConnection.h"
 
-namespace TCPSERVER_SPEC {
-    constexpr size_t REACTOR_POOL_SIZE = 4;
-    constexpr unsigned short ROBIN_MASK = 0x3;
-}
-
 class TCPServer {
     // 记录轮询给哪个EventLoop
     size_t robin_idx_;
-    
+    size_t REACTOR_POOL_SIZE_;
+    unsigned short ROBIN_MASK_;
+    bool connection_timer_enable_;
+
     std::unordered_map<size_t, std::shared_ptr<TCPConnection>> conn_manager_;
     std::vector<std::shared_ptr<Timer>> robin_loop_timer_;
     std::unique_ptr<Acceptor> acceptor_;
@@ -38,6 +37,8 @@ public:
 
     // 传入要监听的IP地址及端口号，拉起TCP监听线程
     void start(const char*, const char*);
+    // 设置多级Reactor数量，设置是否启用TCPConnection定期活跃度检测
+    void spec_set(const ushort&, bool);
 
     void set_upper_sync_create_callback(std::function<void(std::shared_ptr<TCPConnection>)>);
     void set_parse_ready_callback(std::function<void(std::weak_ptr<TCPConnection>)> callbackFunc);

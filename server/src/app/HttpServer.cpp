@@ -35,6 +35,8 @@ int main(int argc, char** argv)
     HttpServer httpServer;
 
     TCPServer tcpServer;
+    // 4次级Reactor(IO线程)，开启TCPConnection活跃定时器
+    tcpServer.spec_set(2, true);
     tcpServer.set_upper_sync_create_callback([&httpServer](std::shared_ptr<TCPConnection> tcp_conn) {
         httpServer.set_http_context(tcp_conn);
     });

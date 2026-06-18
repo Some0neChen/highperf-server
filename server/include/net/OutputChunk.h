@@ -40,6 +40,7 @@ public:
     StringChunk();
     StringChunk& append(std::string&&) override;
     StringChunk& append(const std::string_view&) override;
+    StringChunk& append(char*);
     virtual WriteOutCome writeToSocket(const int& fd) override;
     ~StringChunk() override = default;
 };

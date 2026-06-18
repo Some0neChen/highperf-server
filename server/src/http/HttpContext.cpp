@@ -83,6 +83,11 @@ void HttpContext::ParseInput(std::shared_ptr<Buffer<char>> buffer)
     return;
 }
 
+void HttpContext::commit()
+{
+
+}
+
 void HttpContext::save_respond_chunk(std::shared_ptr<RequestContent> req, const size_t& request_id)
 {
     auto chunk = HttpRouter::get_router().get_response(req);
@@ -103,6 +108,10 @@ void HttpContext::save_respond_chunk(std::shared_ptr<RequestContent> req, const 
     conn_shared->run_in_loop([conn_shared, chunk, request_id, keep_alive, self_weak]() {
         auto self_shared = self_weak.lock();
         if (!self_shared) {
+            return;
+        }
+        if (self_shared->next_written_chunk_id_ > request_id) {
+            // 说明前面已有超时包裹返回，此处不接收
             return;
         }
         self_shared->respond_chunks_.emplace(request_id, chunk);

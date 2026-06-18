@@ -25,6 +25,7 @@ class TCPConnection : public std::enable_shared_from_this<TCPConnection> {
     int version_;
     size_t pending_output_bytes_;
     bool enable_state_;
+    bool timer_enable_;
     // 协议上下文
     std::shared_ptr<void> context_;
     std::queue<std::shared_ptr<OutputChunk>> output_chunks_;
@@ -51,7 +52,10 @@ public:
     std::function<void(std::function<void()>)> run_in_loop;
     
     void init_channel();
+    // 挂接上层协议
     void set_context(std::shared_ptr<void>);
+    // 设置是否开启TCP管道定时器
+    void set_timer_enable(bool);
     void set_close_notify(std::function<void()>);
     void set_parse_ready_callback(std::function<void(std::weak_ptr<TCPConnection>)>);
 

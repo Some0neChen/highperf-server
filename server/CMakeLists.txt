@@ -4,6 +4,8 @@ file(GLOB SERVER_APP_SOURCES  "${CMAKE_CURRENT_SOURCE_DIR}/src/app/*.cpp")
 file(GLOB SERVER_BASE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/base/*.cpp")
 file(GLOB SERVER_NET_SOURCES  "${CMAKE_CURRENT_SOURCE_DIR}/src/net/*.cpp")
 file(GLOB SERVER_HTTP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/http/*.cpp")
+file(GLOB SERVER_HTTP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/rpc/*.cpp")
+file(GLOB SERVER_HTTP_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/kv/*.cpp")
 
 set(SERVER_SOURCES
     ${SERVER_APP_SOURCES}
@@ -27,6 +29,8 @@ target_include_directories(WebServer PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include/base
     ${CMAKE_CURRENT_SOURCE_DIR}/include/net
     ${CMAKE_CURRENT_SOURCE_DIR}/include/http
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/rpc
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/kv
 )
 
 # [作用]：链接异步日志库

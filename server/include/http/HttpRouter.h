@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <unordered_map>
 #include <string_view>
 #include <memory>
@@ -38,6 +39,7 @@ public:
     }
 
     HttpHandleCode register_http_sender(const std::string_view&, std::unique_ptr<HttpSender>);
+    void route(std::shared_ptr<RequestContent>&, std::function<void()>);
     std::shared_ptr<OutputChunk> get_response(std::shared_ptr<RequestContent>&);
     // 404
     std::shared_ptr<OutputChunk> get_unfound_response(std::shared_ptr<RequestContent>&);
