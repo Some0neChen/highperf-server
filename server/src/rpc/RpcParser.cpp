@@ -54,5 +54,14 @@ std::shared_ptr<TLVData> parse_rpc_buffer(std::shared_ptr<Buffer<char>> buf)
 
 void hton_rpc_header(RpcHeader& header)
 {
-    
+    header.magic = ntohl(header.magic);
+    header.version = ntohs(header.version);
+    header.header_length = ntohs(header.header_length);
+    header.request_id = ntohl(header.request_id);
+    header.payload_length = ntohl(header.payload_length);
+    header.status = ntohl(header.status);
+    header.service_id = ntohl(header.method_id);
+    header.msg_type = ntohs(header.msg_type);
+    header.flags = ntohs(header.flags);
+    header.codec = ntohs(header.codec);
 }
